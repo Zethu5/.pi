@@ -86,10 +86,13 @@ Follow all repository instructions. Work autonomously. The batch started on bran
 
 After all required remote CI checks pass, complete the issue workflow. Switch to ${base}. Squash-merge the pull request with head-commit protection and delete the remote branch. Pull ${base} with fast-forward only. Delete the local ${branch}. Verify that the worktree is clean, ${base} matches origin/${base}, and ${branch} does not exist locally or remotely. Close issue #${issue.number} with a pull-request reference. Run CodeGraph sync through its full Windows PowerShell path. Redeploy with docker compose up -d --build. Output ${marker} only after every step succeeds.`, { expandPromptTemplates: false });
 		await session.waitForIdle();
-		const leaf = session.sessionManager.getLeafEntry();
-		if (leaf?.type === "message" && leaf.message.role === "assistant" && leaf.message.stopReason === "aborted") return void session.ui.notify(`Cancelled issue #${issue.number}; stopping batch.`, "warning");
-		const output = leaf?.type === "message" && leaf.message.role === "assistant" ? JSON.stringify(leaf.message.content) : "";
-		if (!output.includes(marker)) return void session.ui.notify(`Issue #${issue.number} did not complete; stopping batch.`, "warning");
+		const reply = session.sessionManager.getBranch().reverse().find((entry) =>
+			entry.type === "message" && entry.message.role === "assistant",
+		);
+		if (reply?.type === "message" && reply.message.role === "assistant" && reply.message.stopReason === "aborted") return void session.ui.notify(`Cancelled issue #${issue.number}; stopping batch.`, "warning");
+		const markerFound = reply?.type === "message" && reply.message.role === "assistant" &&
+			reply.message.content.some((content) => content.type === "text" && content.text.includes(marker));
+		if (!markerFound) return void session.ui.notify(`Issue #${issue.number} did not complete; stopping batch.`, "warning");
 		completed = true;
 	} });
 	if (result.cancelled) return void ctx.ui.notify(`Session reset cancelled before issue #${issue.number}.`, "warning");
