@@ -1,0 +1,171 @@
+{
+  "lastChangelogVersion": "0.84.4",
+  "theme": "dark/dark",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.6-sol",
+  "defaultThinkingLevel": "medium",
+  "shellPath": "C:/Program Files/Git/bin/bash.exe",
+  "packages": [
+    "npm:pi-web-access",
+    "npm:@juicesharp/rpiv-ask-user-question",
+    "npm:@dietrichgebert/ponytail",
+    "npm:@ff-labs/pi-fff",
+    "npm:pi-rtk-optimizer",
+    "npm:pi-zentui",
+    "npm:@narumitw/pi-goal",
+    "npm:pi-subagents",
+    "npm:pi-loop-police",
+    "npm:@vndv/pi-codegraph",
+    "npm:@pi-kaush/pi-welcome-screen",
+    "npm:design-playbook",
+    "npm:pi-memory"
+  ],
+  "subagents": {
+    "agentOverrides": {
+      "scout": {
+        "model": "openai-codex/gpt-5.6-luna",
+        "thinking": "low",
+        "tools": [
+          "read",
+          "grep",
+          "find",
+          "ls",
+          "bash",
+          "write",
+          "fffind",
+          "ffgrep",
+          "codegraph_search",
+          "codegraph_node",
+          "codegraph_files",
+          "codegraph_callers",
+          "codegraph_callees",
+          "codegraph_impact",
+          "codegraph_explore",
+          "codegraph_status"
+        ]
+      },
+      "researcher": {
+        "model": "openai-codex/gpt-5.6-terra",
+        "thinking": "medium",
+        "tools": [
+          "read",
+          "write",
+          "web_search",
+          "fetch_content",
+          "get_search_content"
+        ]
+      },
+      "worker": {
+        "model": "openai-codex/gpt-5.6-terra",
+        "thinking": "medium",
+        "tools": [
+          "read",
+          "grep",
+          "find",
+          "ls",
+          "bash",
+          "edit",
+          "write",
+          "contact_supervisor",
+          "fffind",
+          "ffgrep",
+          "codegraph_search",
+          "codegraph_node",
+          "codegraph_files",
+          "codegraph_callers",
+          "codegraph_callees",
+          "codegraph_impact",
+          "codegraph_explore",
+          "codegraph_status"
+        ]
+      },
+      "reviewer": {
+        "model": "openai-codex/gpt-5.6-terra",
+        "thinking": "high",
+        "skills": [
+          "ponytail-review"
+        ],
+        "tools": [
+          "read",
+          "grep",
+          "find",
+          "ls",
+          "fffind",
+          "ffgrep",
+          "codegraph_search",
+          "codegraph_node",
+          "codegraph_files",
+          "codegraph_callers",
+          "codegraph_callees",
+          "codegraph_impact",
+          "codegraph_explore",
+          "codegraph_status"
+        ]
+      },
+      "oracle": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "thinking": "high",
+        "tools": [
+          "read",
+          "grep",
+          "find",
+          "ls",
+          "bash",
+          "fffind",
+          "ffgrep",
+          "codegraph_search",
+          "codegraph_node",
+          "codegraph_files",
+          "codegraph_callers",
+          "codegraph_callees",
+          "codegraph_impact",
+          "codegraph_explore",
+          "codegraph_status"
+        ]
+      },
+      "delegate": {
+        "model": "openai-codex/gpt-5.6-luna",
+        "thinking": "medium",
+        "tools": [
+          "read",
+          "grep",
+          "find",
+          "ls",
+          "bash",
+          "edit",
+          "write",
+          "contact_supervisor",
+          "fffind",
+          "ffgrep",
+          "codegraph_search",
+          "codegraph_node",
+          "codegraph_files",
+          "codegraph_callers",
+          "codegraph_callees",
+          "codegraph_impact",
+          "codegraph_explore",
+          "codegraph_status"
+        ]
+      }
+    },
+    "watchdog": {
+      "main": {
+        "enabled": true
+      },
+      "children": {
+        "enabled": true,
+        "autoFollow": {
+          "blockers": true
+        }
+      },
+      "asyncCompletion": {
+        "enabled": true,
+        "autoFollowBlockers": true
+      },
+      "autoFollow": {
+        "blockers": true
+      },
+      "enabled": true
+    }
+  }
+}
