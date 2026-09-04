@@ -1,7 +1,7 @@
 # Z Implement Design
 
 **Date:** 2026-09-04
-**Status:** Draft for final review
+**Status:** Approved
 
 ## Purpose
 
@@ -134,6 +134,14 @@ The scenarios verify these decisions:
 3. Missing subagent capability selects inline execution instead of stopping or fabricating a tool.
 
 Add only instructions that correct failures observed during baseline evaluation.
+
+### Evaluation result
+
+All five baseline outputs selected the intended decisions without `z-implement`. One output received a harness failure only because it made no file edit.
+
+All five guided outputs also selected the intended decisions. The baseline found no workflow-policy failure that needs additional doctrine.
+
+The skill remains a thin named entrypoint by user decision. It must not add a rationalization table or duplicate upstream instructions.
 
 ## Deployment
 
