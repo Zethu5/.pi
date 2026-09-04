@@ -13,6 +13,7 @@ Treat the complete user argument as one path. Invocation confirms design approva
 
 Validate that the path:
 
+- Is repository-relative. Reject absolute paths before resolution.
 - Resolves inside the current Git repository.
 - Names a Markdown file.
 - Exists in `HEAD`.
