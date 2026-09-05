@@ -31,9 +31,15 @@ Design-Path: issue-body | <repository-relative Markdown path>
 Design-Commit: none | <full Git commit SHA>
 ```
 
+Require `Design-Status` to equal `approved`.
+
+For a bounded design, require `Design-Path: issue-body` and `Design-Commit: none`.
+
+For an architectural design, require a repository-relative Markdown `Design-Path` and a full `Design-Commit` SHA. Reject every other field combination.
+
 Capture the issue number, URL, title, body, repository, default branch, and primary checkout path. Require repository support for squash merge.
 
-Fetch the default branch. Require the primary checkout to use that branch and match `origin/<default-branch>`. Stop for tracked, staged, or unrelated untracked changes. Ignore only generated `.codegraph/` contents.
+Fetch the default branch. Require the primary checkout to use that branch and match `origin/<default-branch>`. Stop for tracked, staged, or unrelated untracked changes. Ignore only generated `.codegraph/` contents. Never stash, reset, clean, or discard checkout changes automatically.
 
 A failed readiness check leaves the issue open and creates no branch or worktree.
 

@@ -75,6 +75,25 @@ test("z-implement skill blocks a dirty primary checkout", () => {
   );
 });
 
+test("z-implement skill validates each design metadata combination", () => {
+  assert.match(skill, /Require `Design-Status` to equal `approved`\./);
+  assert.match(
+    skill,
+    /For a bounded design, require `Design-Path: issue-body` and `Design-Commit: none`\./,
+  );
+  assert.match(
+    skill,
+    /For an architectural design, require a repository-relative Markdown `Design-Path` and a full `Design-Commit` SHA\./,
+  );
+});
+
+test("z-implement skill never hides checkout changes", () => {
+  assert.match(
+    skill,
+    /Never stash, reset, clean, or discard checkout changes automatically\./,
+  );
+});
+
 test("z-implement command describes approved issue and design-path inputs", async () => {
   const { description } = await getHandler();
 
