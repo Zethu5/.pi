@@ -2,11 +2,11 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
   pi.registerCommand("z-implement", {
-    description: "Implement an approved Superpowers design in a clean session",
+    description: "Implement and land one approved GitHub issue in a clean session",
     handler: async (args, ctx) => {
-      const designPath = args.trim();
-      if (!designPath) {
-        ctx.ui.notify("Usage: /z-implement <design-path>", "warning");
+      const issueReference = args.trim();
+      if (!issueReference) {
+        ctx.ui.notify("Usage: /z-implement <issue-number-or-url>", "warning");
         return;
       }
 
@@ -14,7 +14,7 @@ export default function (pi: ExtensionAPI) {
       const result = await ctx.newSession({
         withSession: async (replacementCtx) => {
           await replacementCtx.sendUserMessage(
-            `/skill:z-implement ${designPath}`,
+            `/skill:z-implement ${issueReference}`,
             { expandPromptTemplates: true },
           );
         },

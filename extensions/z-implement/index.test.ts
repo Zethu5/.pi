@@ -12,19 +12,21 @@ async function loadExtension(): Promise<Extension> {
   }
 }
 
-async function getHandler(): Promise<Handler> {
+async function getHandler(): Promise<{ handler: Handler; description: string }> {
   let handler: Handler | undefined;
+  let description = "";
   const extension = await loadExtension();
 
   extension({
-    registerCommand(name: string, options: { handler: Handler }) {
+    registerCommand(name: string, options: { handler: Handler; description: string }) {
       assert.equal(name, "z-implement");
       handler = options.handler;
+      description = options.description;
     },
   });
 
   assert.ok(handler);
-  return handler;
+  return { handler, description };
 }
 
 test("z-implement starts the skill in a clean session", async () => {
@@ -32,7 +34,8 @@ test("z-implement starts the skill in a clean session", async () => {
   let prompt = "";
   let sendOptions: unknown;
 
-  await (await getHandler())("  docs/superpowers/specs/example-design.md  ", {
+  const { handler, description } = await getHandler();
+  await handler("  #42  ", {
     ui: {
       notify() {
         throw new Error("Unexpected notification");
@@ -55,14 +58,16 @@ test("z-implement starts the skill in a clean session", async () => {
   });
 
   assert.deepEqual(events, ["idle", "new", "send"]);
-  assert.equal(prompt, "/skill:z-implement docs/superpowers/specs/example-design.md");
+  assert.equal(prompt, "/skill:z-implement #42");
+  assert.match(description, /implement and land/i);
   assert.deepEqual(sendOptions, { expandPromptTemplates: true });
 });
 
 test("z-implement rejects empty input without replacing the session", async () => {
   let notification: unknown;
 
-  await (await getHandler())("   ", {
+  const { handler } = await getHandler();
+  await handler("   ", {
     ui: {
       notify(message: string, level: string) {
         notification = { message, level };
@@ -77,7 +82,7 @@ test("z-implement rejects empty input without replacing the session", async () =
   });
 
   assert.deepEqual(notification, {
-    message: "Usage: /z-implement <design-path>",
+    message: "Usage: /z-implement <issue-number-or-url>",
     level: "warning",
   });
 });
@@ -85,7 +90,8 @@ test("z-implement rejects empty input without replacing the session", async () =
 test("z-implement reports cancelled session replacement", async () => {
   let notification: unknown;
 
-  await (await getHandler())("docs/superpowers/specs/example-design.md", {
+  const { handler } = await getHandler();
+  await handler("#42", {
     ui: {
       notify(message: string, level: string) {
         notification = { message, level };
