@@ -210,7 +210,13 @@ git commit -m "feat: route z-implement through issues"
 - Consumes: One explicit GitHub issue reference in issue mode, or one repository-relative Markdown path in compatibility mode.
 - Produces: A verified implementation and issue delivery, or a precise resumable stop report.
 
-- [ ] **Step 1: Add a failing skill-contract test**
+- [ ] **Step 1: Run RED pressure samples without the skill**
+
+Run five fresh-agent samples without loading `z-implement`. Give each sample the same cases: missing approval metadata, failed checks under delivery pressure, dirty primary checkout, post-merge recovery, and the successful delivery order.
+
+Record each decision and unsafe action. Confirm that at least one sample misses a required contract. If every sample already complies, stop and keep the current skill unchanged.
+
+- [ ] **Step 2: Add a failing skill-contract test**
 
 Add this import and test to `extensions/z-implement/index.test.ts`:
 
@@ -238,7 +244,7 @@ test("z-implement skill defines safe issue delivery", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and verify failure**
+- [ ] **Step 3: Run the test and verify failure**
 
 ```bash
 node --test extensions/z-implement/index.test.ts
@@ -246,7 +252,7 @@ node --test extensions/z-implement/index.test.ts
 
 Expected: the new skill-contract test fails.
 
-- [ ] **Step 3: Replace the coordinator skill with this content**
+- [ ] **Step 4: Replace the coordinator skill with this content**
 
 ````markdown
 ---
@@ -361,7 +367,7 @@ Read the design and referenced inputs. Stop for material blockers. Use `superpow
 Path mode has no issue lifecycle. Use the normal `superpowers:finishing-a-development-branch` integration choice after verification.
 ````
 
-- [ ] **Step 4: Run the skill and extension checks**
+- [ ] **Step 5: Run the skill and extension checks**
 
 ```bash
 node --test extensions/z-implement/index.test.ts
@@ -369,7 +375,13 @@ node --test extensions/z-implement/index.test.ts
 
 Expected: all tests pass.
 
-- [ ] **Step 5: Commit only the skill and its test**
+- [ ] **Step 6: Run GREEN pressure samples with the skill**
+
+Run five fresh-agent samples with `z-implement` loaded. Use the same cases and scoring as Step 1.
+
+Require every sample to stop at unsafe gates, preserve resumable state, and use the required successful delivery order. If a sample fails, change only the smallest skill text that closes the observed gap, then repeat the affected samples.
+
+- [ ] **Step 7: Commit only the skill and its test**
 
 ```bash
 git add skills/z-implement/SKILL.md extensions/z-implement/index.test.ts
