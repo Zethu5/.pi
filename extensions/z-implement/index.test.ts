@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+
+const skill = readFileSync(
+  new URL("../../skills/z-implement/SKILL.md", import.meta.url),
+  "utf8",
+);
 
 type Handler = (args: string, ctx: any) => Promise<void>;
 type Extension = (pi: any) => void;
@@ -28,6 +34,22 @@ async function getHandler(): Promise<{ handler: Handler; description: string }> 
   assert.ok(handler);
   return { handler, description };
 }
+
+test("z-implement skill defines safe issue delivery", () => {
+  assert.match(skill, /approved-design/);
+  assert.match(skill, /z-design:v1/);
+  assert.match(skill, /Design-Class/);
+  assert.match(skill, /issue-body/);
+  assert.match(skill, /Closes #/);
+  assert.match(skill, /--squash/);
+  assert.match(skill, /--match-head-commit/);
+  assert.match(skill, /--ff-only/);
+  assert.match(skill, /git branch -D issue-<number>/);
+  assert.match(skill, /codegraph/i);
+  assert.match(skill, /resum/i);
+  assert.match(skill, /Do not scan/i);
+  assert.match(skill, /repository-relative Markdown path/);
+});
 
 test("z-implement starts the skill in a clean session", async () => {
   const events: string[] = [];
