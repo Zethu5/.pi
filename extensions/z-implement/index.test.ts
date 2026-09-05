@@ -51,6 +51,37 @@ test("z-implement skill defines safe issue delivery", () => {
   assert.match(skill, /repository-relative Markdown path/);
 });
 
+test("z-implement skill checks merged-PR recovery before the open-issue gate", () => {
+  const recoveryCheck = skill.indexOf(
+    "Before requiring the issue to be open, inspect recovery state.",
+  );
+  const openIssueGate = skill.indexOf("Require an open issue");
+
+  assert.ok(recoveryCheck >= 0, "missing the pre-gate recovery check");
+  assert.ok(recoveryCheck < openIssueGate, "recovery must precede the open-issue gate");
+});
+
+test("z-implement skill confirms manual issue closure before cleanup", () => {
+  assert.match(
+    skill,
+    /If automatic closure failed,[\s\S]*?gh issue view[\s\S]*?state[\s\S]*?closed[\s\S]*?before synchronization or cleanup/i,
+  );
+});
+
+test("z-implement skill blocks a dirty primary checkout", () => {
+  assert.match(
+    skill,
+    /Stop for tracked, staged, or unrelated untracked changes\. Ignore only generated `\.codegraph\/` contents\./,
+  );
+});
+
+test("z-implement command describes approved issue and design-path inputs", async () => {
+  const { description } = await getHandler();
+
+  assert.match(description, /approved GitHub issue/i);
+  assert.match(description, /repository-relative Markdown path/i);
+});
+
 test("z-implement starts the skill in a clean session", async () => {
   const events: string[] = [];
   let prompt = "";
@@ -85,7 +116,7 @@ test("z-implement starts the skill in a clean session", async () => {
   assert.deepEqual(sendOptions, { expandPromptTemplates: true });
 });
 
-test("z-implement rejects empty input without replacing the session", async () => {
+test("z-implement shows issue-or-path usage for empty input", async () => {
   let notification: unknown;
 
   const { handler } = await getHandler();
@@ -104,7 +135,7 @@ test("z-implement rejects empty input without replacing the session", async () =
   });
 
   assert.deepEqual(notification, {
-    message: "Usage: /z-implement <issue-number-or-url>",
+    message: "Usage: /z-implement <approved-issue-or-repository-relative-markdown-path>",
     level: "warning",
   });
 });

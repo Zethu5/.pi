@@ -2,11 +2,14 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
   pi.registerCommand("z-implement", {
-    description: "Implement and land one approved GitHub issue in a clean session",
+    description: "Implement and land one approved GitHub issue or one repository-relative Markdown path in a clean session",
     handler: async (args, ctx) => {
       const issueReference = args.trim();
       if (!issueReference) {
-        ctx.ui.notify("Usage: /z-implement <issue-number-or-url>", "warning");
+        ctx.ui.notify(
+          "Usage: /z-implement <approved-issue-or-repository-relative-markdown-path>",
+          "warning",
+        );
         return;
       }
 

@@ -19,6 +19,8 @@ Issue-mode invocation confirms design approval, worktree consent, and squash-del
 
 Use `gh issue view` to read only the explicit issue. Verify its repository matches the current GitHub checkout.
 
+Before requiring the issue to be open, inspect recovery state. For a verified matching merged pull request, use Recovery; this is the only closed-issue exception.
+
 Require an open issue with the `approved-design` label and this header:
 
 ```text
@@ -77,7 +79,7 @@ Capture the current head SHA. Squash-merge with remote branch deletion and head 
 gh pr merge <pr> --squash --delete-branch --match-head-commit <head-sha>
 ```
 
-Verify through GitHub that the pull request is merged into the default branch. Only then verify that the issue is closed. If automatic closure failed, close it with a comment that references the merged pull request.
+Verify through GitHub that the pull request is merged into the default branch. Only then verify that the issue is closed. If automatic closure failed, close it with a comment that references the merged pull request. Then use `gh issue view` to confirm its state is `closed` before synchronization or cleanup.
 
 ## Primary-checkout synchronization
 
