@@ -149,7 +149,7 @@ Selected design
 - Base branch: main
 
 Authoritative guide
-Read E:/Projects/Argus/matt-pocock-workflows.md before work. Follow its current-source corrections and Pi adaptations. Do not install skills or redefine subagents.
+Read C:/Users/zvika/.pi/agent/docs/matt-pocock-workflows.md before work. Follow its current-source corrections and Pi adaptations. Do not install skills or redefine subagents.
 
 Authority
 - Process only implementation tickets that belong to parent spec #${specNumber}.
