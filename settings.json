@@ -1,9 +1,9 @@
 {
-  "lastChangelogVersion": "0.84.4",
+  "lastChangelogVersion": "0.85.1",
   "theme": "dark/dark",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.6-sol",
-  "defaultThinkingLevel": "medium",
+  "defaultThinkingLevel": "max",
   "shellPath": "C:/Program Files/Git/bin/bash.exe",
   "packages": [
     "npm:pi-web-access",
@@ -12,13 +12,11 @@
     "npm:@ff-labs/pi-fff",
     "npm:pi-rtk-optimizer",
     "npm:pi-zentui",
-    "npm:@narumitw/pi-goal",
     "npm:pi-subagents",
     "npm:pi-loop-police",
     "npm:@vndv/pi-codegraph",
     "npm:@pi-kaush/pi-welcome-screen",
-    "npm:design-playbook",
-    "npm:pi-memory"
+    "npm:pi-mcp-adapter"
   ],
   "subagents": {
     "agentOverrides": {
@@ -57,7 +55,7 @@
       },
       "worker": {
         "model": "openai-codex/gpt-5.6-terra",
-        "thinking": "medium",
+        "thinking": "high",
         "tools": [
           "read",
           "grep",
