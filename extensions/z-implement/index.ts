@@ -1,7 +1,10 @@
 import { readFile, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import {
+	DEFAULT_MAX_BYTES,
+	DEFAULT_MAX_LINES,
 	isToolCallEventType,
+	truncateHead,
 	type ExtensionAPI,
 	type ExtensionCommandContext,
 	type ExtensionContext,
@@ -11,23 +14,40 @@ import { Type } from "typebox";
 import {
 	classifyCommand,
 	containsGitPush,
+	deploymentVerificationPhase,
 	documentContainsCommand,
 	extractGhTarget,
 	implementPrompt,
 	isCodegraphSyncCommand,
 	matchHeadCommit,
 	parseSpecReference,
+	requestsIssueContent,
 } from "./core.ts";
 
 const MARKER = "z-implement-session";
 const VERIFIED = "z-implement-verified";
 const CODEGRAPH_SYNCED = "z-implement-codegraph-synced";
 const DEPLOYED = "z-implement-deployed";
+const PARENT_READ = "z-implement-parent-read";
+const SELECTED_TICKET = "z-implement-selected-ticket";
 
 type RunMarker = { repo: string; root: string; specNumber: number; specTitle: string };
 type Verification = { phase: "ticket" | "main"; head: string; checks: string[][]; verifiedAt: string };
 type RepoContext = { repo: string; root: string };
 type SpecInfo = { number: number; title: string; url: string };
+type IssueSnapshot = {
+	number: number;
+	title: string;
+	state: string;
+	url: string;
+	body?: string;
+	labels?: Array<{ name?: string }>;
+	parent?: { number?: number } | null;
+	blockedBy?: { nodes?: Array<{ number?: number; state?: string }> };
+	assignees?: Array<unknown>;
+	closedByPullRequestsReferences?: Array<{ number?: number; state?: string }>;
+	comments?: Array<{ body?: string }>;
+};
 type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
 function runMarker(ctx: ExtensionContext): RunMarker | undefined {
@@ -72,6 +92,12 @@ async function currentHeadIsVerified(
 	return head.code === 0 && status.code === 0 && !status.stdout.trim() && head.stdout.trim().toLowerCase() === verified.head.toLowerCase();
 }
 
+async function currentHeadIsDeployVerified(pi: ExtensionAPI, ctx: ExtensionContext, run: RunMarker): Promise<boolean> {
+	const branch = await pi.exec("git", ["branch", "--show-current"], { cwd: run.root, timeout: 5_000 });
+	const phase = branch.code === 0 ? deploymentVerificationPhase(branch.stdout) : undefined;
+	return phase ? currentHeadIsVerified(pi, ctx, run, phase, false) : false;
+}
+
 function awaitsDeploy(ctx: ExtensionContext): boolean {
 	const entries = ctx.sessionManager.getEntries();
 	let syncIndex = -1;
@@ -100,6 +126,59 @@ function labelNames(labels: Array<{ name?: string }> | undefined): Set<string> {
 
 function containsSensitiveArg(args: string[]): boolean {
 	return args.some((arg) => /(?:^|[_-])(?:api[_-]?key|password|secret|token)(?:=|$)/i.test(arg));
+}
+
+function selectedTicketNumber(ctx: ExtensionContext): number | undefined {
+	const entries = ctx.sessionManager.getEntries();
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index];
+		if (entry?.type === "custom" && entry.customType === SELECTED_TICKET) return (entry.data as { number?: number }).number;
+	}
+}
+
+function currentToolBatchNames(ctx: ExtensionContext): string[] {
+	const entries = ctx.sessionManager.getEntries();
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index];
+		if (entry?.type !== "message" || entry.message.role !== "assistant") continue;
+		return entry.message.content.flatMap((item) => (item.type === "toolCall" ? [item.name] : []));
+	}
+	return [];
+}
+
+async function fetchIssueSnapshot(
+	pi: ExtensionAPI,
+	run: RunMarker,
+	number: number,
+	signal?: AbortSignal,
+): Promise<Result<IssueSnapshot>> {
+	const result = await pi.exec(
+		"gh",
+		[
+			"issue",
+			"view",
+			String(number),
+			"--repo",
+			run.repo,
+			"--json",
+			"number,title,state,url,body,labels,parent,blockedBy,assignees,closedByPullRequestsReferences,comments",
+		],
+		{ cwd: run.root, signal, timeout: 30_000 },
+	);
+	if (result.code !== 0) return { ok: false, error: `Cannot read ${run.repo}#${number}.` };
+	try {
+		return { ok: true, value: JSON.parse(result.stdout) as IssueSnapshot };
+	} catch {
+		return { ok: false, error: `Issue #${number} content was invalid.` };
+	}
+}
+
+function formattedIssue(snapshot: IssueSnapshot): Result<string> {
+	const comments = (snapshot.comments ?? []).flatMap((comment) => (comment.body ? [comment.body] : []));
+	const text = [`# #${snapshot.number} ${snapshot.title}`, snapshot.body ?? "", ...(comments.length ? ["## Comments", ...comments] : [])].join("\n\n");
+	const bounded = truncateHead(text, { maxBytes: DEFAULT_MAX_BYTES, maxLines: DEFAULT_MAX_LINES });
+	if (bounded.truncated) return { ok: false, error: `Issue #${snapshot.number} exceeds the safe context limit.` };
+	return { ok: true, value: bounded.content };
 }
 
 async function preflight(pi: ExtensionAPI, cwd: string): Promise<Result<RepoContext>> {
@@ -144,7 +223,7 @@ async function validateSpec(pi: ExtensionAPI, cwd: string, repo: string, number:
 		state: string;
 		url: string;
 		labels?: Array<{ name?: string }>;
-		blockedBy?: Array<{ state?: string }>;
+		blockedBy?: { nodes?: Array<{ state?: string }> };
 	};
 	try {
 		issue = JSON.parse(result.stdout);
@@ -156,7 +235,7 @@ async function validateSpec(pi: ExtensionAPI, cwd: string, repo: string, number:
 	for (const required of ["z-design", "z-design:spec", "z-design:complete"]) {
 		if (!labels.has(required)) return { ok: false, error: `Spec #${number} is missing ${required}.` };
 	}
-	if ((issue.blockedBy ?? []).some((blocker) => blocker.state !== "CLOSED")) {
+	if ((issue.blockedBy?.nodes ?? []).some((blocker) => blocker.state !== "CLOSED")) {
 		return { ok: false, error: `Spec #${number} has an open blocker.` };
 	}
 	return { ok: true, value: { number: issue.number, title: issue.title, url: issue.url } };
@@ -370,9 +449,29 @@ function safeDocumentPath(root: string, input: string): string | undefined {
 	return full;
 }
 
+async function startRunSession(ctx: ExtensionCommandContext, run: RunMarker): Promise<boolean> {
+	const result = await ctx.newSession({
+		parentSession: ctx.sessionManager.getSessionFile(),
+		setup: async (session) => {
+			session.appendCustomEntry(MARKER, run);
+			session.appendSessionInfo(`z-implement: #${run.specNumber} ${run.specTitle.slice(0, 36)}`);
+		},
+		withSession: async (replacement) => {
+			try {
+				await replacement.sendUserMessage(implementPrompt(run.specNumber, run.specTitle, run.repo));
+			} catch {
+				replacement.ui.notify("The fresh ticket session started, but its implementation prompt failed.", "error");
+			}
+		},
+	});
+	return !result.cancelled;
+}
+
 export default function zImplement(pi: ExtensionAPI): void {
+	let rolloverPending = false;
+
 	pi.registerCommand("z-implement", {
-		description: "Implement one completed z-design spec through reviewed ticket PRs",
+		description: "Autonomously implement one completed z-design spec through reviewed ticket PRs",
 		handler: async (args, ctx) => {
 			await ctx.waitForIdle();
 			if (ctx.mode !== "tui") return void ctx.ui.notify("z-implement requires an interactive TUI.", "warning");
@@ -381,29 +480,127 @@ export default function zImplement(pi: ExtensionAPI): void {
 			if (!checked.ok) return void ctx.ui.notify(checked.error, "warning");
 			const selected = await chooseSpec(pi, ctx, checked.value.repo, args.trim());
 			if (!selected.ok) return void ctx.ui.notify(selected.error, "warning");
-			const approved = await ctx.ui.confirm(
-				"Start z-implement",
-				`Repository: ${checked.value.repo}\nBase: main\nSpec: #${selected.value.number} ${selected.value.title}\n\nThis creates a clean session. Push, merge, closure, and deployment have later gates.`,
-			);
-			if (!approved) return;
 			const run: RunMarker = {
 				repo: checked.value.repo,
 				root: checked.value.root,
 				specNumber: selected.value.number,
 				specTitle: selected.value.title,
 			};
-			const previousSession = ctx.sessionManager.getSessionFile();
-			const result = await ctx.newSession({
-				parentSession: previousSession,
-				setup: async (session) => {
-					session.appendCustomEntry(MARKER, run);
-					session.appendSessionInfo(`z-implement: #${run.specNumber} ${run.specTitle.slice(0, 36)}`);
-				},
-				withSession: async (replacement) => {
-					await replacement.sendUserMessage(implementPrompt(run.specNumber, run.specTitle, run.repo));
-				},
-			});
-			if (result.cancelled) ctx.ui.notify("z-implement session creation was cancelled.", "warning");
+			if (!(await startRunSession(ctx, run))) ctx.ui.notify("z-implement session creation was cancelled.", "warning");
+		},
+	});
+
+	pi.registerTool({
+		name: "z_implement_read_parent_spec",
+		label: "Read Parent Spec",
+		description: "Read the selected z-design parent specification without exposing child ticket bodies.",
+		parameters: Type.Object({}),
+		async execute(_toolCallId, _params, signal, _onUpdate, ctx) {
+			const run = runMarker(ctx);
+			if (!run) throw new Error("z_implement_read_parent_spec requires a marked z-implement session.");
+			if (hasStage(ctx, PARENT_READ)) throw new Error("The parent specification is already loaded in this ticket session.");
+			const result = await fetchIssueSnapshot(pi, run, run.specNumber, signal);
+			if (!result.ok) throw new Error(result.error);
+			const content = formattedIssue(result.value);
+			if (!content.ok) throw new Error(content.error);
+			pi.appendEntry(PARENT_READ, { number: run.specNumber, readAt: new Date().toISOString() });
+			return { content: [{ type: "text", text: content.value }], details: { number: run.specNumber, url: result.value.url } };
+		},
+	});
+
+	pi.registerTool({
+		name: "z_implement_select_ticket",
+		label: "Select Ticket",
+		description: "Lock this Pi session to one eligible frontier ticket and return only that ticket's body and comments.",
+		parameters: Type.Object({ number: Type.Integer({ minimum: 1 }) }),
+		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+			const run = runMarker(ctx);
+			if (!run) throw new Error("z_implement_select_ticket requires a marked z-implement session.");
+			const selected = selectedTicketNumber(ctx);
+			if (selected) throw new Error(`This Pi session is already locked to ticket #${selected}.`);
+			if (params.number === run.specNumber) throw new Error("Select an implementation ticket, not the parent specification.");
+			const result = await fetchIssueSnapshot(pi, run, params.number, signal);
+			if (!result.ok) throw new Error(result.error);
+			const issue = result.value;
+			const labels = labelNames(issue.labels);
+			for (const required of ["z-design", "z-design:ticket", "ready-for-agent"]) {
+				if (!labels.has(required)) throw new Error(`Ticket #${issue.number} is missing ${required}.`);
+			}
+			if (issue.state !== "OPEN") throw new Error(`Ticket #${issue.number} is not open.`);
+			if (issue.parent?.number !== run.specNumber && !new RegExp(`(?:#|issues/)${run.specNumber}\\b`).test(issue.body ?? "")) {
+				throw new Error(`Ticket #${issue.number} does not point to spec #${run.specNumber}.`);
+			}
+			if ((issue.blockedBy?.nodes ?? []).some((blocker) => blocker.state !== "CLOSED")) {
+				throw new Error(`Ticket #${issue.number} has an open blocker.`);
+			}
+			if ((issue.assignees ?? []).length > 0) throw new Error(`Ticket #${issue.number} is already assigned.`);
+			if ((issue.closedByPullRequestsReferences ?? []).some((pr) => pr.state === "OPEN")) {
+				throw new Error(`Ticket #${issue.number} already has an open closing pull request.`);
+			}
+			const content = formattedIssue(issue);
+			if (!content.ok) throw new Error(content.error);
+			pi.appendEntry(SELECTED_TICKET, { number: issue.number, selectedAt: new Date().toISOString() });
+			return { content: [{ type: "text", text: content.value }], details: { number: issue.number, url: issue.url } };
+		},
+	});
+
+	pi.registerCommand("z-implement-next-ticket", {
+		description: "Start a fresh marked session before reading the next implementation ticket",
+		handler: async (_args, ctx) => {
+			await ctx.waitForIdle();
+			const run = runMarker(ctx);
+			if (!run) {
+				rolloverPending = false;
+				return void ctx.ui.notify("No marked z-implement run exists.", "warning");
+			}
+			if (!ctx.isProjectTrusted()) {
+				rolloverPending = false;
+				return void ctx.ui.notify("Trust this project before z-implement.", "warning");
+			}
+			const checked = await preflight(pi, run.root);
+			if (!checked.ok) {
+				rolloverPending = false;
+				return void ctx.ui.notify(checked.error, "warning");
+			}
+			if (checked.value.repo.toLowerCase() !== run.repo.toLowerCase()) {
+				rolloverPending = false;
+				return void ctx.ui.notify("The repository changed during z-implement.", "warning");
+			}
+			try {
+				if (!(await startRunSession(ctx, run))) {
+					rolloverPending = false;
+					ctx.ui.notify("Ticket session creation was cancelled.", "warning");
+				}
+			} catch (error) {
+				rolloverPending = false;
+				throw error;
+			}
+		},
+	});
+
+	pi.registerTool({
+		name: "z_implement_next_ticket_session",
+		label: "Start Fresh Ticket Session",
+		description: "Start a fresh marked top-level Pi session before reading the next implementation ticket.",
+		parameters: Type.Object({}),
+		async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
+			try {
+				const run = runMarker(ctx);
+				if (!run) throw new Error("z_implement_next_ticket_session requires a marked z-implement session.");
+				if (!ctx.isProjectTrusted()) throw new Error("The project is not trusted.");
+				const checked = await preflight(pi, run.root);
+				if (!checked.ok) throw new Error(`${checked.error} Prepare clean, updated main before the next ticket session.`);
+				if (checked.value.repo.toLowerCase() !== run.repo.toLowerCase()) throw new Error("The repository changed during z-implement.");
+				pi.sendUserMessage("/z-implement-next-ticket", { deliverAs: "followUp", expandPromptTemplates: true });
+				return {
+					content: [{ type: "text", text: "Queued a fresh marked session for the next implementation ticket." }],
+					details: { repo: run.repo, specNumber: run.specNumber },
+					terminate: true,
+				};
+			} catch (error) {
+				rolloverPending = false;
+				throw error;
+			}
 		},
 	});
 
@@ -479,8 +676,8 @@ export default function zImplement(pi: ExtensionAPI): void {
 
 	pi.registerTool({
 		name: "z_implement_deploy",
-		label: "Approve Exact Local Deploy",
-		description: "Run one documented local redeploy argv after CodeGraph sync and interactive approval in z-implement.",
+		label: "Run Exact Local Deploy",
+		description: "Run one documented local redeploy argv from a verified main or ticket HEAD after CodeGraph sync.",
 		parameters: Type.Object({
 			document: Type.String({ minLength: 1, maxLength: 500, description: "Repository-relative Markdown document with the exact command" }),
 			program: Type.String({ minLength: 1, maxLength: 100, description: "Exact executable name" }),
@@ -490,8 +687,7 @@ export default function zImplement(pi: ExtensionAPI): void {
 			const run = runMarker(ctx);
 			if (!run) throw new Error("z_implement_deploy requires a marked z-implement session.");
 			if (!ctx.isProjectTrusted()) throw new Error("The project is not trusted.");
-			if (!ctx.hasUI) throw new Error("Local deployment needs an interactive confirmation.");
-			if (!(await currentHeadIsVerified(pi, ctx, run, "main", false))) throw new Error("The current main HEAD has no matching local verification.");
+			if (!(await currentHeadIsDeployVerified(pi, ctx, run))) throw new Error("The current branch HEAD has no matching local verification.");
 			if (!hasStage(ctx, CODEGRAPH_SYNCED) || !awaitsDeploy(ctx)) throw new Error("Run a successful codegraph sync immediately before deployment.");
 			if (/^(?:git|gh|codegraph)(?:\.exe|\.cmd)?$/i.test(params.program)) throw new Error("Deployment cannot run Git, GitHub, or CodeGraph as its program.");
 			if (containsSensitiveArg(params.args)) throw new Error("Deployment argv cannot contain credential arguments. Use the process environment.");
@@ -513,11 +709,6 @@ export default function zImplement(pi: ExtensionAPI): void {
 			const exact = [params.program, ...params.args].join(" ");
 			if (!documentContainsCommand(document, exact)) throw new Error(`The document does not contain the exact command: ${exact}`);
 			const argv = JSON.stringify([params.program, ...params.args]);
-			const approved = await ctx.ui.confirm(
-				"Approve local redeploy",
-				`Repository: ${run.repo}\nDocument: ${params.document}\nExact argv: ${argv}`,
-			);
-			if (!approved) throw new Error("Local redeploy was not approved.");
 			const result = await pi.exec(params.program, params.args, { cwd: run.root, signal, timeout: 30 * 60_000 });
 			if (result.code !== 0) throw new Error(`Local redeploy failed with exit code ${result.code}.`);
 			pi.appendEntry(DEPLOYED, { document: params.document, argv, completedAt: new Date().toISOString() });
@@ -530,16 +721,32 @@ export default function zImplement(pi: ExtensionAPI): void {
 
 	pi.on("tool_call", async (event, ctx) => {
 		const run = runMarker(ctx);
+		if (!run) return;
+		if (rolloverPending) return { block: true, reason: "Ticket session rollover is already pending.", terminate: true };
+		if (event.toolName === "z_implement_next_ticket_session") {
+			const batch = currentToolBatchNames(ctx);
+			if (batch.length !== 1 || batch[0] !== event.toolName) {
+				return { block: true, reason: "Call z_implement_next_ticket_session as the only tool in its final turn." };
+			}
+			rolloverPending = true;
+			return;
+		}
+		if (event.toolName === "z_implement_select_ticket") {
+			const batch = currentToolBatchNames(ctx);
+			if (batch.length !== 1 || batch[0] !== event.toolName) {
+				return { block: true, reason: "Call z_implement_select_ticket alone so one ticket body enters this session." };
+			}
+		}
 		const command = shellCommand(event);
-		if (!run || !command) return;
-		if (awaitsDeploy(ctx)) {
-			return { block: true, reason: "Call z_implement_deploy before any later shell command.", terminate: true };
+		if (!command) return;
+		if (requestsIssueContent(command)) {
+			return { block: true, reason: "Use z_implement_read_parent_spec or z_implement_select_ticket for issue bodies." };
 		}
 		const kind = classifyCommand(command);
 		if (kind === "none") return;
 		const commandRepo = explicitGhRepo(command);
 		if (commandRepo && commandRepo.toLowerCase() !== run.repo.toLowerCase()) {
-			return { block: true, reason: `z-implement cannot mutate ${commandRepo}.`, terminate: true };
+			return { block: true, reason: `z-implement cannot mutate ${commandRepo}. Use the selected repository and retry.` };
 		}
 		if (
 			kind === "force-push" ||
@@ -550,45 +757,37 @@ export default function zImplement(pi: ExtensionAPI): void {
 			kind === "blocked-remote" ||
 			kind === "deploy"
 		) {
-			return { block: true, reason: `z-implement blocks ${kind} commands.`, terminate: true };
+			return { block: true, reason: `z-implement blocks ${kind} commands. Use the safe workflow path and retry.` };
 		}
 		if (containsGitPush(command)) {
 			const current = await pi.exec("git", ["branch", "--show-current"], { cwd: run.root, timeout: 5_000 });
 			if (current.code !== 0 || current.stdout.trim() === "main") {
-				return { block: true, reason: "z-implement never pushes main.", terminate: true };
+				return { block: true, reason: "z-implement never pushes main. Push a verified ticket branch instead." };
 			}
 		}
-		if (!ctx.hasUI) return { block: true, reason: "This GitHub stage needs interactive confirmation.", terminate: true };
-		const shown = command.length > 800 ? `${command.slice(0, 800)}…` : command;
 		if (kind === "pr-merge") {
 			const checked = await validateMerge(pi, ctx, run, command);
-			if (!checked.ok) return { block: true, reason: checked.error, terminate: true };
-			const ok = await ctx.ui.confirm("Merge reviewed PR", `${checked.value}\n\nExact command:\n${shown}`);
-			if (!ok) return { block: true, reason: "PR merge was not confirmed.", terminate: true };
+			if (!checked.ok) return { block: true, reason: `${checked.error} Repair the gate and retry.` };
 			return;
 		}
 		if (kind === "issue-close") {
 			const checked = await validateIssueClose(pi, ctx, run, command);
-			if (!checked.ok) return { block: true, reason: checked.error, terminate: true };
-			const ok = await ctx.ui.confirm("Close related issue", `${checked.value}\n\nExact command:\n${shown}`);
-			if (!ok) return { block: true, reason: "Issue closure was not confirmed.", terminate: true };
+			if (!checked.ok) return { block: true, reason: `${checked.error} Repair the gate and retry.` };
 			return;
 		}
 		if (kind === "publish") {
 			const publishesCode = containsGitPush(command) || /\bgh(?:\.exe|\.cmd)?\s+pr\s+create\b/i.test(command);
 			if (publishesCode && !(await currentHeadIsVerified(pi, ctx, run, "ticket"))) {
-				return { block: true, reason: "Run z_implement_verify for this exact ticket HEAD before publication.", terminate: true };
+				return { block: true, reason: "Run z_implement_verify for this exact ticket HEAD, then retry publication." };
 			}
-			const ok = await ctx.ui.confirm("Publish reviewed ticket stage", `Repository: ${run.repo}\nSpec: #${run.specNumber}\n\nExact command:\n${shown}`);
-			if (!ok) return { block: true, reason: "Publication was not confirmed.", terminate: true };
 		}
 	});
 
-	pi.on("tool_result", (event, ctx) => {
+	pi.on("tool_result", async (event, ctx) => {
 		const run = runMarker(ctx);
 		if (!run || event.isError || (event.toolName !== "bash" && event.toolName !== "powershell")) return;
 		const command = typeof event.input.command === "string" ? event.input.command : "";
-		if (isCodegraphSyncCommand(command)) {
+		if (isCodegraphSyncCommand(command) && (await currentHeadIsDeployVerified(pi, ctx, run))) {
 			pi.appendEntry(CODEGRAPH_SYNCED, { command, completedAt: new Date().toISOString() });
 		}
 	});

@@ -142,7 +142,9 @@ Design flow
 
 Publication contract
 - Show the complete publication manifest before the first remote mutation.
-- Wait for the extension's publication-stage confirmation.
+- Ask the user to approve design decisions, the spec, test seams, ticket sizes, and blocking edges before publication.
+- After those approvals, publish automatically to the selected GitHub repository. Do not request separate publication, branch, commit, push, PR, or label approval.
+- This publication contract overrides the guide's separate publication approvals for z-design only. Ask again only if a design decision changes.
 - Ensure these labels exist without overwriting unrelated labels:
   - z-design: created through this Matt Pocock design flow.
   - z-design:spec: parent design specification.
@@ -155,7 +157,7 @@ Publication contract
 - Use native GitHub sub-issues and blockers. Use explicit parent and blocker sections only as a fallback.
 - Use an OS-temporary --body-file for multiline issue and pull-request text. Keep prose out of mutation command strings.
 - Put a Design provenance section in the spec and each ticket. Include the parent spec, this goal, the guide commit, accepted decisions, non-goals, seams, and source pointers.
-- Apply z-design:complete to the parent only after the user approves the spec, seams, ticket sizes, edges, and uploaded pointers.
+- Apply z-design:complete to the parent only after design approval and verification of all published artifacts and pointers. Do not request pointer approval.
 
 Artifact contract
 - Put accepted terms and durable decisions in CONTEXT.md and ADRs.

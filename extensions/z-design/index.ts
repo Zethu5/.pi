@@ -7,7 +7,6 @@ import {
 import { classifyCommand, containsGitPush, designPrompt } from "./core.ts";
 
 const MARKER = "z-design-session";
-const PUBLICATION_APPROVAL = "z-design-publication-approved";
 
 type RunMarker = { goal: string; repo: string; root: string };
 type RepoContext = { repo: string; root: string };
@@ -19,12 +18,6 @@ function marker(ctx: ExtensionContext): RunMarker | undefined {
 		const entry = entries[index];
 		if (entry?.type === "custom" && entry.customType === MARKER) return entry.data as RunMarker;
 	}
-}
-
-function publicationApproved(ctx: ExtensionContext): boolean {
-	return ctx.sessionManager
-		.getEntries()
-		.some((entry) => entry.type === "custom" && entry.customType === PUBLICATION_APPROVAL);
 }
 
 function shellCommand(event: ToolCallEvent): string | undefined {
@@ -71,7 +64,7 @@ async function preflight(pi: ExtensionAPI, cwd: string): Promise<Preflight> {
 
 export default function zDesign(pi: ExtensionAPI): void {
 	pi.registerCommand("z-design", {
-		description: "Start a clean, confirmation-gated Matt Pocock feature design",
+		description: "Start a clean Matt Pocock feature design with decision approval and automatic publication",
 		handler: async (args, ctx) => {
 			const goal = cleanGoal(args);
 			if (!goal) return void ctx.ui.notify("Usage: /z-design <feature goal>", "warning");
@@ -124,16 +117,6 @@ export default function zDesign(pi: ExtensionAPI): void {
 			if (current.code !== 0 || current.stdout.trim() === "main") {
 				return { block: true, reason: "z-design never pushes main.", terminate: true };
 			}
-		}
-		if (kind === "publish" && !publicationApproved(ctx)) {
-			if (!ctx.hasUI) return { block: true, reason: "Design publication needs an interactive confirmation.", terminate: true };
-			const shown = command.length > 800 ? `${command.slice(0, 800)}…` : command;
-			const ok = await ctx.ui.confirm(
-				"Publish z-design artifacts",
-				`Approve the reviewed publication stage for ${run.repo}?\n\nFirst command:\n${shown}`,
-			);
-			if (!ok) return { block: true, reason: "Design publication was not confirmed.", terminate: true };
-			pi.appendEntry(PUBLICATION_APPROVAL, { repo: run.repo, approvedAt: new Date().toISOString() });
 		}
 	});
 }

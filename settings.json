@@ -1,9 +1,10 @@
 {
   "lastChangelogVersion": "0.85.1",
-  "theme": "dark/dark",
+  "theme": "thinking-colors/thinking-colors",
+  "tuiMode": "regular",
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.6-sol",
-  "defaultThinkingLevel": "max",
+  "defaultModel": "gpt-6-astra",
+  "defaultThinkingLevel": "medium",
   "shellPath": "C:/Program Files/Git/bin/bash.exe",
   "packages": [
     "npm:pi-web-access",
@@ -11,12 +12,11 @@
     "npm:@dietrichgebert/ponytail",
     "npm:@ff-labs/pi-fff",
     "npm:pi-rtk-optimizer",
-    "npm:pi-zentui",
     "npm:pi-subagents",
     "npm:pi-loop-police",
     "npm:@vndv/pi-codegraph",
-    "npm:@pi-kaush/pi-welcome-screen",
-    "npm:pi-mcp-adapter"
+    "npm:pi-mcp-adapter",
+    "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill"
   ],
   "subagents": {
     "agentOverrides": {

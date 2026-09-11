@@ -1,0 +1,106 @@
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
+import { stripVTControlCharacters } from "node:util";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { VERSION } from "@earendil-works/pi-coding-agent";
+import { truncateToWidth, visibleWidth, type TuiMainScreen, type TuiAltScreen } from "@earendil-works/pi-tui";
+import { colorResourceLines, decorateResources } from "./resources.ts";
+
+type Animation = { width: number; height: number; intervalMs: number; frames: string[][]; intro: string[][] };
+
+export default function (pi: ExtensionAPI) {
+  let stop = () => {};
+  let startupReady = () => {};
+  let restoreLayout = () => {};
+  let animation: Animation | undefined;
+
+  const show = (ctx: ExtensionContext, expand = false) => {
+    if (ctx.mode !== "tui") return;
+    try {
+      animation ??= JSON.parse(gunzipSync(readFileSync(new URL("./frames.json.gz", import.meta.url))).toString());
+    } catch (error) {
+      ctx.ui.notify(`Cannot load the Pi logo: ${String(error)}`, "warning");
+      return;
+    }
+    const data = animation!;
+    stop();
+    ctx.ui.setHeader((tui, theme) => {
+      let frame = 0;
+      let width = 0;
+      let viewportDirty = true;
+      let visible = false;
+      let restoreResources: (() => void) | undefined;
+      restoreLayout = () => { restoreResources?.(); restoreResources = undefined; };
+      const noColor = Boolean(process.env.NO_COLOR);
+      const reducedMotion = process.env.PI_REDUCED_MOTION === "1";
+      let introFrame = expand && !noColor && !reducedMotion ? -1 : data.intro.length;
+      let ready = false;
+      startupReady = () => { ready = true; };
+      let timer: ReturnType<typeof setInterval> | undefined;
+      const dispose = () => { clearInterval(timer); timer = undefined; };
+      stop = dispose;
+      if (!noColor && !reducedMotion) {
+        timer = setInterval(() => {
+          if (width < data.width + 4 || tui.terminal.rows < 20 || tui.hasOverlay?.()) return;
+          if (tui.mode === "regular") {
+            // Read committed viewport state after rendering, not while measuring the header.
+            // Cache hidden state so idle ticks do not copy the entire transcript.
+            if (viewportDirty) {
+              const state = (tui as TuiMainScreen).captureRenderState?.();
+              visible = state?.previousViewportTop === 0 && state.maxLinesRendered <= tui.terminal.rows;
+              viewportDirty = false;
+            }
+          } else if (tui.mode === "fullscreen") {
+            const screen = tui as TuiAltScreen;
+            visible = screen.viewportTop === 0 && !screen.hasActiveSelection?.();
+          } else visible = false;
+          // Freeze both frame state and redraws. Hidden frame changes also cause history replays.
+          if (!visible) return;
+          if (introFrame < 0) {
+            if (ready) introFrame = 0;
+          } else if (introFrame < data.intro.length) {
+            // Do not skip the entrance when startup delays a timer callback.
+            introFrame++;
+          } else frame = (frame + 1) % data.frames.length;
+          tui.requestRender();
+        }, data.intervalMs);
+        timer.unref();
+      }
+      return {
+        render(availableWidth: number) {
+          viewportDirty = true;
+          restoreResources ??= decorateResources(tui, theme, lines => colorResourceLines(lines, data.frames[frame]));
+          width = Math.max(0, availableWidth);
+          const compact = noColor || width < data.width + 4 || tui.terminal.rows < 20;
+          const logo = compact ? [theme.fg("accent", "π")]
+            : introFrame < 0 ? Array<string>(data.height).fill(" ".repeat(data.width))
+            : data.intro[introFrame] ?? data.frames[frame];
+          const logoPadding = " ".repeat(Math.max(0, Math.floor((width - (compact ? 1 : data.width)) / 2)));
+          const center = (line: string) => " ".repeat(Math.max(0, Math.floor((width - visibleWidth(line)) / 2))) + line;
+          const lines = ["", ...logo.map(line => logoPadding + line), "",
+            center(theme.fg("muted", `pi v${VERSION}`)), ""];
+          return lines.map(line => truncateToWidth(noColor ? stripVTControlCharacters(line) : line, width, ""));
+        },
+        invalidate() {},
+        dispose() { dispose(); restoreResources?.(); restoreResources = undefined; },
+      };
+    });
+  };
+
+  pi.on("session_start", (event, ctx) => show(ctx, event.reason === "startup"));
+  pi.on("resources_discover", () => { startupReady(); });
+  pi.on("session_shutdown", () => { stop(); restoreLayout(); });
+  pi.registerCommand("logo", {
+    description: "Pi logo: animate, pause, or off",
+    handler: async (args, ctx) => {
+      if (ctx.mode !== "tui") return;
+      switch (args.trim()) {
+        case "":
+        case "animate": show(ctx); break;
+        case "pause": stop(); break;
+        case "off": stop(); ctx.ui.setHeader(undefined); break;
+        default: ctx.ui.notify("Use /logo animate, /logo pause, or /logo off.", "info");
+      }
+    },
+  });
+}
