@@ -17,6 +17,14 @@ const jiti = createJiti(import.meta.url, { alias: {
 const { default: extension } = await jiti.import(new URL("logo.ts", import.meta.url).href);
 const { visibleWidth, TuiMainScreen, TuiAltScreen, Container, Text } = await jiti.import(tuiPath);
 const data = JSON.parse(gunzipSync(readFileSync(new URL("frames.json.gz", import.meta.url))));
+const { VERSION } = await jiti.import(agentPath);
+assert.equal(data.caption.text, `pi v${VERSION}`);
+assert.equal(data.caption.frames.at(-1), data.caption.text);
+assert.ok(new Set(data.caption.frames).size > 20);
+for (const frame of data.caption.frames) {
+  assert.equal(visibleWidth(frame), data.caption.text.length);
+  assert.equal(stripVTControlCharacters(frame), frame);
+}
 const visibleShape = line => stripVTControlCharacters(line.replace(/\x1b\[48;2;\d+;\d+;\d+m \x1b\[0m/g, "█"));
 const shape = data.frames[0].map(visibleShape);
 assert.deepEqual(shape, [
@@ -91,7 +99,7 @@ try {
     assert.equal(lines[1].indexOf("█"), Math.floor((width - data.width) / 2));
     assert.deepEqual(lines.slice(1, 1 + data.height).map(line => line.slice(Math.floor((width - data.width) / 2))), shape);
     for (const line of lines.slice(2 + data.height).filter(line => line.trim())) {
-      assert.equal(line.length - line.trimStart().length, Math.floor((width - line.trim().length) / 2));
+      assert.equal(line.length - line.trimStart().length, Math.floor((width - data.caption.text.length) / 2));
     }
   }
   const first = header.render(80);
@@ -107,7 +115,8 @@ try {
   assert.deepEqual(values(resources.render(80)), values(resourceFirst), "List values must keep their original colors across frames.");
   assert.ok(values(resourceFirst).every(line => !line.includes("\x1b[38;2;")));
   const frameColors = new Set(data.frames[2].flatMap(line => [...line.matchAll(/\x1b\[48;2;(\d+;\d+;\d+)m/g)].map(match => match[1])));
-  for (const line of resources.render(80)) {
+  assert.equal(stripVTControlCharacters(header.render(80).at(-2)).trim(), data.caption.frames[12].trim());
+  for (const line of [...resources.render(80), header.render(80).at(-2)]) {
     for (const match of line.matchAll(/\x1b\[38;2;(\d+;\d+;\d+)m/g)) assert.ok(frameColors.has(match[1]), "Use the current logo frame's exact colors.");
   }
   for (let width = 0; width <= 160; width++) {
@@ -143,6 +152,10 @@ try {
     assert.deepEqual(header.render(80).slice(1, 1 + data.height).map(visibleShape),
       shape.map(line => " ".repeat((80 - data.width) / 2) + line));
   }
+  for (let tick = 0; tick < Math.ceil(data.caption.frames.length / 6); tick++) [...timers][0].callback();
+  assert.equal(stripVTControlCharacters(header.render(80).at(-2)).trim(), data.caption.text);
+  for (let tick = 0; tick < data.frames.length; tick++) [...timers][0].callback();
+  assert.equal(stripVTControlCharacters(header.render(80).at(-2)).trim(), data.caption.text, "Decrypt must finish without looping.");
   const beforePrompt = header.render(80);
   handlers.get("before_agent_start")?.();
   assert.equal(timers.size, 1, "Keep animation active after a prompt.");
@@ -167,6 +180,8 @@ try {
   assert.equal(timers.size, 0);
   assert.deepEqual(header.render(80).slice(1, 1 + data.height).map(visibleShape),
     shape.map(line => " ".repeat((80 - data.width) / 2) + line));
+  assert.equal(stripVTControlCharacters(header.render(80).at(-2)).trim(), data.caption.text);
+  assert.ok(header.render(80).at(-2).includes("\x1b[38;2;"), "Keep logo colors with reduced motion.");
   delete process.env.PI_REDUCED_MOTION;
   process.env.NO_COLOR = "1";
   await command("animate", ctx);

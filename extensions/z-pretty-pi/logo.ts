@@ -6,7 +6,8 @@ import { VERSION } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, type TuiMainScreen, type TuiAltScreen } from "@earendil-works/pi-tui";
 import { colorResourceLines, decorateResources } from "./resources.ts";
 
-type Animation = { width: number; height: number; intervalMs: number; frames: string[][]; intro: string[][] };
+type Animation = { width: number; height: number; intervalMs: number; frames: string[][]; intro: string[][];
+  caption: { text: string; frames: string[] } };
 
 export default function (pi: ExtensionAPI) {
   let stop = () => {};
@@ -33,6 +34,8 @@ export default function (pi: ExtensionAPI) {
       restoreLayout = () => { restoreResources?.(); restoreResources = undefined; };
       const noColor = Boolean(process.env.NO_COLOR);
       const reducedMotion = process.env.PI_REDUCED_MOTION === "1";
+      const caption = `pi v${VERSION}`;
+      let captionFrame = 0;
       let introFrame = expand && !noColor && !reducedMotion ? -1 : data.intro.length;
       let ready = false;
       startupReady = () => { ready = true; };
@@ -56,6 +59,7 @@ export default function (pi: ExtensionAPI) {
           } else visible = false;
           // Freeze both frame state and redraws. Hidden frame changes also cause history replays.
           if (!visible) return;
+          if (ready || !expand) captionFrame = Math.min(captionFrame + 6, data.caption.frames.length);
           if (introFrame < 0) {
             if (ready) introFrame = 0;
           } else if (introFrame < data.intro.length) {
@@ -77,8 +81,10 @@ export default function (pi: ExtensionAPI) {
             : data.intro[introFrame] ?? data.frames[frame];
           const logoPadding = " ".repeat(Math.max(0, Math.floor((width - (compact ? 1 : data.width)) / 2)));
           const center = (line: string) => " ".repeat(Math.max(0, Math.floor((width - visibleWidth(line)) / 2))) + line;
+          const captionText = !compact && !reducedMotion && data.caption.text === caption
+            ? data.caption.frames[captionFrame] ?? caption : caption;
           const lines = ["", ...logo.map(line => logoPadding + line), "",
-            center(theme.fg("muted", `pi v${VERSION}`)), ""];
+            center(colorResourceLines([captionText], data.frames[frame])[0]), ""];
           return lines.map(line => truncateToWidth(noColor ? stripVTControlCharacters(line) : line, width, ""));
         },
         invalidate() {},

@@ -2,12 +2,16 @@
 
 import gzip
 import json
+import random
+import re
+import sys
 from pathlib import Path
 
 from terminaltexteffects import Color, Gradient, easing
 from terminaltexteffects.effects.effect_colorshift import ColorShift
 from terminaltexteffects.effects.effect_highlight import Highlight
 from terminaltexteffects.effects.effect_expand import Expand
+from terminaltexteffects.effects.effect_decrypt import Decrypt
 from terminaltexteffects.utils.argutils import CharacterGroup
 
 # Match the reference: the i sits outside the P and touches its corner.
@@ -107,7 +111,19 @@ def generate():
         if not intro or rendered != intro[-1]:
             intro.append(rendered)
     assert intro[-1] == frames[0], "Expansion must join the color loop without a jump."
-    data = {"width": WIDTH, "height": HEIGHT, "intervalMs": 33, "frames": frames, "intro": intro}
+    caption = sys.argv[1] if len(sys.argv) > 1 else "pi v0.85.1"
+    random.seed(851)
+    decrypt = configure(Decrypt(caption))
+    decrypt.terminal_config.canvas_width = len(caption)
+    decrypt.terminal_config.canvas_height = 1
+    decrypt.effect_config.ciphertext_colors = PALETTE
+    decrypt.effect_config.final_gradient_stops = PALETTE
+    # Apply the shared logo colors in Pi; retain TTE's exact character sequence.
+    caption_frames = [re.sub(r"\x1b\[[0-9;]*m", "", frame) for frame in decrypt]
+    assert caption_frames[-1] == caption
+    assert all(len(frame) == len(caption) and "\x1b" not in frame for frame in caption_frames)
+    data = {"width": WIDTH, "height": HEIGHT, "intervalMs": 33, "frames": frames, "intro": intro,
+            "caption": {"text": caption, "frames": caption_frames}}
     destination = Path(__file__).with_name("frames.json.gz")
     destination.write_bytes(gzip.compress(json.dumps(data, ensure_ascii=False).encode(), mtime=0))
     print(f"Generated {count} combined frames ({destination.stat().st_size} bytes).")

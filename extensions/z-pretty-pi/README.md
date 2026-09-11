@@ -12,6 +12,21 @@ All customizations stay in this extension; do not modify Pi's installed files.
 `index.ts` is the only extension entry point. It registers the logo helper in `logo.ts`.
 This replaces the separate `pretty-status` and `rainbow-logo` extensions.
 
+## Git branch status
+
+The branch name is green when no modified, staged, untracked, or conflicted files exist.
+Status symbols include counts: `?N` untracked files, `!N` unstaged files, `+N` staged files, and `~N` conflicted files.
+A partially staged file counts in both staged and unstaged states. Renames count once; untracked directories count each file.
+Submodules count as one repository entry, not their internal files. `▶N` counts stash entries, not files.
+Zero counts are hidden. For example, `?2!3+1` means two untracked files, three unstaged files, and one staged file.
+`⇡N` shows commits ahead of the upstream branch. `⇣N` shows commits behind it. Diverged branches show both counts.
+Git reads run asynchronously every three seconds and on branch changes. Failed reads leave the branch neutral, not green.
+Counts use local tracking refs; the extension does not fetch from remotes.
+
+Set `PI_PRETTY_GIT_STYLE=plain` before starting Pi to remove the branch icon and use `*`, `↑N`, `↓N`, and `↕N`.
+For plain diverged status, `N` is the number of local commits ahead of upstream.
+Run `/reload` to apply extension changes.
+
 ## Welcome logo
 
 The welcome header shows the supplied block logo, centered horizontally with its captions.
@@ -22,6 +37,11 @@ The header reserves blank space while waiting. Expansion advances one frame per 
 The expansion does not repeat on reload, session changes, or `/logo animate`.
 It then combines TerminalTextEffects ColorShift with a diagonal Highlight sweep.
 Both effects move from top-left to bottom-right.
+
+The version caption uses TerminalTextEffects Decrypt once when the header opens or `/logo animate` runs.
+Decrypt advances six frames per tick for six-times-faster playback. The logo speed does not change.
+Its characters use the current logo frame's exact colors. After decryption, the text stays readable while its colors continue.
+Pause, viewport visibility, and reduced-motion controls also apply to the caption.
 
 Run `/reload`, then start a new session with `/new` to see the welcome animation.
 The animation continues after prompts only while the welcome screen remains at the top of the visible viewport.
@@ -61,7 +81,7 @@ Run `/reload` to apply the layout.
 
 ## Implementation
 
-`generate.py` uses the actual TTE Expand, ColorShift, and Highlight iterators.
+`generate.py` uses the actual TTE Expand, ColorShift, Highlight, and Decrypt iterators.
 The expansion ends on the first color-loop frame, with fixed header dimensions throughout.
 Highlight provides a grayscale mask. The generator blends this mask over each ColorShift frame.
 Pi reads the compressed frames and draws them through `setHeader`.
@@ -83,7 +103,9 @@ In Git Bash, set `PYTHONPATH` to that checkout:
 PYTHONPATH=/path/to/terminaltexteffects python ~/.pi/agent/extensions/z-pretty-pi/generate.py
 ```
 
-The generator checks the loop boundary and the highlight peak.
+The generator checks the loop boundary, highlight peak, and caption frames.
+The default caption is `pi v0.85.1`. To regenerate for another version, pass the full caption as the first argument.
+If Pi's version differs from the generated caption, the header shows the current version without Decrypt.
 
 ## Check
 

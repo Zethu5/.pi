@@ -1,7 +1,10 @@
 // Run: node ~/.pi/agent/extensions/z-pretty-pi/check.mjs
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { pathToFileURL, fileURLToPath } from "node:url";
 const require = createRequire(new URL("../../npm/package.json", import.meta.url));
@@ -11,7 +14,46 @@ const agentPath = require.resolve.paths("@earendil-works/pi-coding-agent")
   .map(path => `${path}/@earendil-works/pi-coding-agent/dist/index.js`).find(existsSync);
 assert.ok(agentPath, "Pi must be available in Node's module search path.");
 const jiti = createJiti(import.meta.url, { alias: { "@earendil-works/pi-tui": tuiPath, "@earendil-works/pi-coding-agent": agentPath } });
-const { default: extension } = await jiti.import(new URL("index.ts", import.meta.url).href);
+const { default: extension, gitStatus } = await jiti.import(new URL("index.ts", import.meta.url).href);
+assert.deepEqual(gitStatus(""), { symbols: "", color: "success" });
+const combined = "# branch.ab +2 -3\0# stash 1\0? new\0" +
+  "1 MM N... rest\0u UU N... rest\0";
+assert.deepEqual(gitStatus(combined), { symbols: "?1!1+1~1▶1⇡2⇣3", color: "error" });
+assert.equal(gitStatus(combined, true).symbols, "?1!1+1~1*1↕2");
+assert.equal(gitStatus(combined + "? another\0" +
+  "1 .M N... rest\0" + "2 R. N... rest\0? old path\0" +
+  "u AA N... rest\0# stash 4\0").symbols, "?2!2+2~2▶4⇡2⇣3");
+assert.equal(gitStatus("# branch.ab +0 -3\0", true).symbols, "↓3");
+assert.equal(gitStatus("# branch.ab +2 -0\0", true).symbols, "↑2");
+assert.equal(gitStatus("2 R. N... rest\0? old name\0").symbols, "+1");
+assert.equal(gitStatus("1 .M S..U rest\0").symbols, "!1");
+for (const xy of ["DD", "AU", "UD", "UA", "DU", "AA", "UU"])
+  assert.equal(gitStatus(`u ${xy} N... rest\0`).symbols, "~1");
+const repo = mkdtempSync(join(tmpdir(), "pretty-git-"));
+const git = (...args) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" });
+const snapshot = () => gitStatus(git("status", "--porcelain=v2", "--branch", "--show-stash", "-z", "--untracked-files=all"));
+try {
+  git("init", "-q");
+  git("config", "user.name", "Test"); git("config", "user.email", "test@example.invalid");
+  assert.equal(snapshot().symbols, "");
+  writeFileSync(join(repo, "file"), "first\n");
+  assert.equal(snapshot().symbols, "?1");
+  mkdirSync(join(repo, "new-directory"));
+  writeFileSync(join(repo, "new-directory", "a"), "a");
+  writeFileSync(join(repo, "new-directory", "b"), "b");
+  assert.equal(snapshot().symbols, "?3", "Count files, not untracked directories.");
+  rmSync(join(repo, "new-directory"), { recursive: true });
+  git("add", "."); assert.equal(snapshot().symbols, "+1");
+  git("commit", "-qm", "Initial"); assert.equal(snapshot().symbols, "");
+  writeFileSync(join(repo, "file"), "second\n");
+  assert.equal(snapshot().symbols, "!1");
+  git("add", ".");
+  writeFileSync(join(repo, "file"), "third\n");
+  assert.equal(snapshot().symbols, "!1+1", "Count a partially staged file in both states.");
+  git("stash", "push", "-q"); assert.equal(snapshot().symbols, "▶1");
+  git("stash", "drop", "-q");
+  git("mv", "file", "renamed"); assert.equal(snapshot().symbols, "+1");
+} finally { rmSync(repo, { recursive: true, force: true }); }
 const { visibleWidth } = await jiti.import(tuiPath);
 const { loadThemeFromPath } = await jiti.import(new URL("./modes/interactive/theme/theme.js", pathToFileURL(agentPath)).href);
 const thinkingTheme = loadThemeFromPath(fileURLToPath(new URL("../../themes/thinking-colors.json", import.meta.url)), "truecolor");
@@ -29,7 +71,10 @@ const existingEditor = {
   handleInput() {},
   handleMouse(event) { mouseRow = event.y; mouseColumn = event.x; mouseWidth = event.width; return { handled: true }; },
 };
+let gitResult = { code: 0, stdout: "", killed: false };
+let branchChanged;
 const pi = {
+  exec: async () => gitResult,
   on: (name, handler) => {
     const previous = handlers.get(name);
     handlers.set(name, (...args) => { previous?.(...args); handler(...args); });
@@ -61,11 +106,13 @@ const ctx = {
       { fg: (_, text) => `\x1b[36m${text}\x1b[0m`, bold: text => `\x1b[1m${text}\x1b[0m`,
         getThinkingBorderColor: level => thinkingTheme.getThinkingBorderColor(level) },
       { getGitBranch: () => branch, getExtensionStatuses: () => statuses,
-        onBranchChange: () => () => { disposed++; } });
+        onBranchChange: callback => { branchChanged = callback; return () => { disposed++; }; } });
   } },
 };
 listener({ version: 1, servers: [{ name: "penpot", status: "connected" }, { name: "offline", status: "cached" }] });
 handlers.get("session_start")({}, ctx);
+await new Promise(resolve => setImmediate(resolve));
+renders = 0;
 assert.ok(header.render(80).some(line => /\x1b\[48;2;\d+;\d+;\d+m /.test(line)));
 assert.equal(typeof logoCommand, "function");
 const plain = width => stripVTControlCharacters(footer.render(width)[0]);
@@ -156,6 +203,15 @@ for (let width = 0; width <= 180; width++) {
   assert.ok(visibleWidth(lines[0]) <= width, `Width ${width}`);
   assert.ok(!/[\r\n\t]/.test(lines[0]));
 }
+branch = "main";
+gitResult = { code: 0, stdout: combined, killed: false };
+branchChanged();
+await new Promise(resolve => setImmediate(resolve));
+assert.ok(plain(250).includes("main ?1!1+1~1▶1⇡2⇣3"));
+gitResult = { code: 128, stdout: "", killed: false };
+branchChanged();
+await new Promise(resolve => setImmediate(resolve));
+assert.ok(!plain(250).includes("?1!1+1~1"), "Clear stale status after Git failure.");
 const originalFooter = footer;
 await logoCommand("off", ctx);
 assert.equal(header, undefined);
