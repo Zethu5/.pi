@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.85.1",
   "theme": "thinking-colors/thinking-colors",
-  "tuiMode": "regular",
+  "tuiMode": "fullscreen",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-6-astra",
   "defaultThinkingLevel": "medium",

@@ -157,6 +157,7 @@ for (let width = 0; width <= 180; width++) {
   const lines = editor.render(width);
   assert.equal(lines.length, 4);
   assert.equal(visibleWidth(lines[0]), Math.max(0, width - 1), "Leave one empty column on the right.");
+  assert.equal(visibleWidth(footer.render(width)[0]), visibleWidth(lines[0]), "Align the footer's right edge with the top separator.");
   assert.equal(lines.at(-1), "", "Keep a blank row above the footer.");
   for (const line of lines) assert.ok(visibleWidth(line) <= width);
 }
@@ -200,7 +201,7 @@ ctx.cwd = "C:/work/项目😀"; branch = "feature/" + "long".repeat(50);
 for (let width = 0; width <= 180; width++) {
   const lines = footer.render(width);
   assert.equal(lines.length, 1);
-  assert.ok(visibleWidth(lines[0]) <= width, `Width ${width}`);
+  assert.ok(visibleWidth(lines[0]) <= Math.max(0, width - 1), `Width ${width}`);
   assert.ok(!/[\r\n\t]/.test(lines[0]));
 }
 branch = "main";

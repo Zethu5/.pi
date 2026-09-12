@@ -31,21 +31,23 @@ Run `/reload` to apply extension changes.
 
 The welcome header shows the supplied block logo, centered horizontally with its captions.
 The animation uses pink, purple, and soft blue sampled from the supplied color reference.
-The full logo appears immediately, without an expansion effect.
+The whole welcome area expands horizontally from the center once at Pi startup, when the resource list first renders.
+Slow resource discovery does not consume the animation. If no resource component exists, the header stays visible without expansion.
+The reveal includes the logo, version caption, and all resource rows. It keeps row positions and editor placement fixed.
+It advances through 20 timer steps, nominally 660 ms. Startup delays extend playback instead of skipping its frames.
+It does not repeat on redraw, resize, `/reload`, session changes, or `/logo animate`.
 The animation combines TerminalTextEffects ColorShift with a diagonal Highlight sweep.
 Both effects move from top-left to bottom-right.
 
 The version caption uses TerminalTextEffects Decrypt once when the header opens or `/logo animate` runs.
 Decrypt advances six frames per tick for six-times-faster playback. The logo speed does not change.
 Its characters use the current logo frame's exact colors. After decryption, the text stays readable while its colors continue.
-Pause, viewport visibility, and reduced-motion controls also apply to the caption.
+Manual pause and reduced-motion controls also apply to the caption.
 
-Run `/reload`, then start a new session with `/new` to see the welcome animation.
-The animation continues after prompts only while the welcome screen remains at the top of the visible viewport.
-In regular mode, animation pauses when content exceeds the terminal height or enters scrollback.
-In fullscreen mode, animation pauses when the viewport scrolls down or text is selected.
-Both modes pause behind overlays. Hidden animations freeze their frames and do not request redraws.
-They resume when the viewport permits safe animation again. Use `/logo pause` to stop them manually.
+Restart Pi to see the startup expansion. Run `/reload` to apply other welcome changes without replaying the expansion.
+Logo and heading colors continue indefinitely after prompts, including when hidden, behind overlays, and during text selection.
+Animation also continues in small terminals. Hidden frame changes can cause terminal history redraws in regular mode.
+Use `/logo pause` to stop animations manually.
 
 - `/logo animate`: Restart the animation.
 - `/logo pause`: Keep the current frame.
@@ -117,5 +119,7 @@ It also runs `check-logo.mjs` for frame shapes, ANSI safety, narrow terminals, a
 `check-resources.mjs` uses Pi's resource-section builder to check columns, source groups, wrapping, Unicode, diagnostic colors, reloads, and renderer restoration.
 It also checks Themes, new resource headings, shared frame changes, and wrapped headings in collapsed and expanded lists.
 `check-logo.mjs` also checks synchronized heading colors against the exact logo frame and shared pause and cleanup controls.
+It checks the shared startup reveal, delayed resource mounting, blocked startup timers, fixed row count, completion without repetition, and narrow widths.
+Reduced-motion checks confirm that the full welcome area appears without expansion.
 It runs Pi's actual regular and fullscreen renderers with a recording terminal to test scrolling, hidden frames, redraw counts, and visible resumption.
-The checks require zero terminal writes while hidden and no history replay when new chat output arrives.
+The checks require continuous frame changes while hidden, behind overlays, and during selection. Version decryption must finish once.

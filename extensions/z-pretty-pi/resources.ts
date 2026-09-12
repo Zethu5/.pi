@@ -39,7 +39,8 @@ export function colorResourceLines(lines: string[], frame: string[]): string[] {
 
 // Pi has no resource-layout hook. Limit this adapter to the existing resource component.
 // If its shape changes, retain Pi's normal listing instead of rebuilding resource discovery.
-export function decorateResources(root: ResourceNode, theme: Theme, paint?: (lines: string[]) => string[]): (() => void) | undefined {
+export function decorateResources(root: ResourceNode, theme: Theme, paint?: (lines: string[]) => string[],
+  reveal: (lines: string[], width: number) => string[] = lines => lines): (() => void) | undefined {
   const find = (node: ResourceNode): ResourceNode | undefined => {
     if (node.children?.some(child => sectionName(child))) return node;
     for (const child of node.children ?? []) {
@@ -52,7 +53,7 @@ export function decorateResources(root: ResourceNode, theme: Theme, paint?: (lin
   const original = container.render;
   const descriptor = Object.getOwnPropertyDescriptor(container, "render");
   container.render = (width: number) => {
-    if (width < 8) return original.call(container, width);
+    if (width < 8) return reveal(original.call(container, width), width);
     const sections = new Map((container.children ?? [])
       .filter(child => names.has(sectionName(child) ?? ""))
       .map(child => [sectionName(child)!, child]));
@@ -119,8 +120,8 @@ export function decorateResources(root: ResourceNode, theme: Theme, paint?: (lin
       const label = `[${name}]`;
       return [...wrapTextWithAnsi(heading(label), size), ...rendered.slice(wrapTextWithAnsi(label, size).length)];
     }).filter(line => line.trim())];
-    return ["", ...output.map(line => " ".repeat(inset) + line), ""]
-      .map(line => process.env.NO_COLOR ? plain(line) : line);
+    return reveal(["", ...output.map(line => " ".repeat(inset) + line), ""]
+      .map(line => process.env.NO_COLOR ? plain(line) : line), width);
   };
   return () => {
     if (descriptor) Object.defineProperty(container, "render", descriptor);

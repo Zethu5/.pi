@@ -121,6 +121,7 @@ export default function (pi: ExtensionAPI) {
         invalidate() {},
         dispose,
         render(width) {
+          width = Math.max(0, width - 1); // Match the top separator's right edge.
           if (width <= 0) return [""];
           const branch = footerData.getGitBranch();
           const project = clean(basename(ctx.cwd) || ctx.cwd);

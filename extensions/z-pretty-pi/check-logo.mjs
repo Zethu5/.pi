@@ -15,7 +15,7 @@ const jiti = createJiti(import.meta.url, { alias: {
   "@earendil-works/pi-tui": tuiPath, "@earendil-works/pi-coding-agent": agentPath,
 } });
 const { default: extension } = await jiti.import(new URL("logo.ts", import.meta.url).href);
-const { visibleWidth, TuiMainScreen, TuiAltScreen, Container, Text } = await jiti.import(tuiPath);
+const { visibleWidth, truncateToWidth, sliceByColumn, TuiMainScreen, TuiAltScreen, Container, Text } = await jiti.import(tuiPath);
 const data = JSON.parse(gunzipSync(readFileSync(new URL("frames.json.gz", import.meta.url))));
 const { VERSION } = await jiti.import(agentPath);
 assert.equal(data.caption.text, `pi v${VERSION}`);
@@ -76,7 +76,7 @@ try {
   const handlers = new Map();
   let command, header, renders = 0, sets = 0;
   const section = { getCollapsedText: () => "[Skills]\n  alpha, beta", getExpandedText: () => "[Skills]\n  alpha, beta", render: () => ["[Skills]", "  alpha, beta"] };
-  const resources = { children: [section], render: () => section.render() };
+  const resources = { children: [section], render: width => section.render().map(line => truncateToWidth(line, width, "")) };
   const originalResources = resources.render;
   const tui = { mode: "regular", children: [resources], terminal: { rows: 40 },
     captureRenderState: () => ({ previousViewportTop: 0, maxLinesRendered: 20 }),
@@ -126,21 +126,52 @@ try {
   tui.terminal.rows = 15;
   assert.ok(header.render(80).map(stripVTControlCharacters).some(line => line.includes("π")));
   tui.terminal.rows = 40;
+  tui.children = [];
   handlers.get("session_start")({ reason: "startup" }, ctx);
   const assertFullLogo = () => assert.deepEqual(
     header.render(80).slice(1, 1 + data.height).map(visibleShape),
     shape.map(line => " ".repeat((80 - data.width) / 2) + line),
-    "Show the full logo immediately, without expansion.");
-  assertFullLogo();
-  for (let tick = 0; tick < 10; tick++) {
-    [...timers][0].callback();
-    assertFullLogo();
-  }
+    "Show the full logo after the one-shot expansion.");
+  assert.ok(header.render(80).every(line => !line));
+  for (let tick = 0; tick < 10; tick++) [...timers][0].callback();
+  assert.ok(header.render(80).every(line => !line), "Wait for startup resources.");
   handlers.get("resources_discover")();
+  // Pi can render the header while later discovery handlers are still loading resources.
+  for (let tick = 0; tick < 90; tick++) {
+    header.render(80);
+    [...timers][0].callback();
+  }
+  assertFullLogo(); // Quiet startup must not leave a blank header.
+  tui.children = [resources];
   const startup = header.render(80);
+  assert.ok(startup.every(line => !line), "Start the reveal when resources mount, not when discovery begins.");
+  assert.ok(resources.render(80).every(line => !line));
+  now += 2000; // Reproduce a blocking startup task after the first mounted render.
+  [...timers][0].callback();
+  const progress = Math.min(1, data.intervalMs / 650);
+  const inset = Math.floor(80 * (1 - progress * progress * (3 - 2 * progress)) / 2);
+  const openingHeader = header.render(80);
+  const openingResources = resources.render(80);
+  await command("pause", ctx);
+  const clip = lines => lines.map(line => " ".repeat(inset) + sliceByColumn(line, inset, 80 - inset * 2, true));
+  assert.deepEqual(openingHeader, clip(header.render(80)), "Expand the logo and caption together.");
+  assert.deepEqual(openingResources, clip(resources.render(80)), "Expand all resource rows with the same aperture.");
+  assertFullLogo();
+  handlers.get("session_start")({ reason: "startup" }, ctx);
+  handlers.get("resources_discover")();
+  header.render(80);
+  for (let tick = 0; tick < Math.ceil(650 / data.intervalMs); tick++) {
+    [...timers][0].callback();
+    for (const width of [0, 1, 7, 20, 80, 121]) {
+      for (const line of [...header.render(width), ...resources.render(width)]) assert.ok(visibleWidth(line) <= width);
+    }
+  }
+  assertFullLogo();
+  const expandedResources = resources.render(80).map(stripVTControlCharacters);
   for (let tick = 0; tick <= data.frames.length; tick++) {
     [...timers][0].callback();
     assertFullLogo();
+    assert.deepEqual(resources.render(80).map(stripVTControlCharacters), expandedResources, "Expansion must not repeat.");
   }
   assert.notDeepEqual(header.render(80), startup, "Keep the color and caption animations.");
   for (const reason of ["reload", "new", "resume", "fork"]) {
@@ -150,8 +181,12 @@ try {
   }
   for (let tick = 0; tick < Math.ceil(data.caption.frames.length / 6); tick++) [...timers][0].callback();
   assert.equal(stripVTControlCharacters(header.render(80).at(-2)).trim(), data.caption.text);
-  for (let tick = 0; tick < data.frames.length; tick++) [...timers][0].callback();
+  const decryptedLogo = header.render(80);
+  const decryptedResources = resources.render(80);
+  for (let tick = 0; tick < data.frames.length + 2; tick++) [...timers][0].callback();
   assert.equal(stripVTControlCharacters(header.render(80).at(-2)).trim(), data.caption.text, "Decrypt must finish without looping.");
+  assert.notDeepEqual(header.render(80), decryptedLogo, "Logo colors must continue after decryption.");
+  assert.notDeepEqual(resources.render(80), decryptedResources, "Heading colors must continue after decryption.");
   const beforePrompt = header.render(80);
   handlers.get("before_agent_start")?.();
   assert.equal(timers.size, 1, "Keep animation active after a prompt.");
@@ -170,8 +205,8 @@ try {
   const beforeRecoveryRenders = renders;
   [...timers][0].callback();
   for (let tick = 0; tick < 10; tick++) [...timers][0].callback();
-  assert.equal(renders, beforeRecoveryRenders, "Hidden checks must not request redraws.");
-  assert.equal(captures, 1, "Do not copy the transcript on every hidden tick.");
+  assert.equal(renders, beforeRecoveryRenders + 11, "Hidden animation must request every redraw.");
+  assert.equal(captures, 0, "Animation must not depend on viewport capture.");
   // The committed viewport can recover without another header render.
   viewportTop = 0;
   for (let tick = 0; tick < Math.ceil(1000 / data.intervalMs); tick++) [...timers][0].callback();
@@ -232,7 +267,6 @@ try {
     const liveSection = new Text("[Skills]\n  alpha, beta", 0, 0);
     liveSection.getCollapsedText = section.getCollapsedText;
     liveSection.getExpandedText = section.getExpandedText;
-    resourceContainer.addChild(liveSection);
     const chat = new Text("", 0, 0);
     screen.addChild(headerContainer);
     screen.addChild(resourceContainer);
@@ -248,7 +282,8 @@ try {
         if (liveHeader) headerContainer.addChild(liveHeader);
       },
     } };
-    events.get("session_start")({ reason: "reload" }, liveCtx);
+    events.get("session_start")({ reason: "startup" }, liveCtx);
+    events.get("resources_discover")();
     screen.start();
     screen.renderNow();
     requests = 0;
@@ -256,6 +291,21 @@ try {
       for (const timer of timers) timer.callback();
       if (requests) { requests = 0; screen.renderNow(); }
     };
+    for (let i = 0; i < 90; i++) tick();
+    resourceContainer.addChild(liveSection);
+    screen.renderNow();
+    const openingRows = liveHeader.render(100).length + resourceContainer.render(100).length;
+    assert.ok(liveHeader.render(100).every(line => !line));
+    now += 2000;
+    tick();
+    const openingShape = liveHeader.render(100).map(visibleShape);
+    assert.ok(openingShape.some(line => line.includes("█")));
+    assert.ok(openingShape.join("").split("█").length < shape.join("").split("█").length,
+      "A startup stall must not skip to the full logo.");
+    for (let i = 1; i < Math.ceil(650 / data.intervalMs); i++) tick();
+    assert.equal(liveHeader.render(100).length + resourceContainer.render(100).length, openingRows,
+      "Keep welcome height stable during expansion.");
+    assert.ok(resourceContainer.render(100).some(line => stripVTControlCharacters(line).includes("alpha")));
     const onScreen = liveHeader.render(100);
     tick(); tick();
     assert.notDeepEqual(liveHeader.render(100), onScreen, `${screen.mode}: animate the visible welcome screen.`);
@@ -268,15 +318,12 @@ try {
     writes.length = 0;
     const hiddenHeader = liveHeader.render(100);
     const hiddenHeadings = resourceContainer.render(100);
-    const redraws = screen.fullRedraws;
     for (let i = 0; i < 40; i++) tick();
-    assert.equal(writes.length, 0, `${screen.mode}: hidden animation must not write to the terminal.`);
-    assert.equal(screen.fullRedraws, redraws, `${screen.mode}: do not replay scrollback.`);
-    assert.deepEqual(liveHeader.render(100), hiddenHeader, "Freeze hidden logo frames, not only redraw requests.");
-    assert.deepEqual(resourceContainer.render(100), hiddenHeadings, "Freeze hidden heading colors too.");
+    assert.notDeepEqual(liveHeader.render(100), hiddenHeader, "Keep hidden logo frames moving.");
+    assert.notDeepEqual(resourceContainer.render(100), hiddenHeadings, "Keep hidden heading colors moving.");
     chat.setText(Array.from({ length: 101 }, (_, i) => `Chat line ${i}`).join("\n"));
     screen.renderNow();
-    assert.equal(screen.fullRedraws, redraws, `${screen.mode}: new output must not expose a hidden frame change.`);
+
 
     if (screen.mode === "fullscreen") screen.scrollToTop();
     else terminal.rows = 200;
@@ -288,20 +335,21 @@ try {
     const hasOverlay = screen.hasOverlay;
     screen.hasOverlay = () => true;
     requests = 0;
-    for (const timer of timers) timer.callback();
-    assert.equal(requests, 0, "Do not animate behind an overlay.");
-    assert.deepEqual(liveHeader.render(100), beforeOverlay);
+    // Adjacent generated color frames can match after the caption finishes.
+    for (let i = 0; i < 2; i++) for (const timer of timers) timer.callback();
+    assert.equal(requests, 2, "Keep animation active behind overlays.");
+    assert.notDeepEqual(liveHeader.render(100), beforeOverlay);
     screen.hasOverlay = hasOverlay;
     if (screen.mode === "fullscreen") {
       screen.hasActiveSelection = () => true;
       for (const timer of timers) timer.callback();
-      assert.equal(requests, 0, "Do not disturb text selection.");
+      assert.equal(requests, 3, "Keep animation active during text selection.");
     }
     events.get("session_shutdown")();
     assert.equal(timers.size, 0);
     screen.stop();
   }
-  console.log("PASS: logo/heading animation, widths, controls, cleanup; real regular/fullscreen renderers: no hidden writes or scrollback replays, visible resume, overlay/selection pause.");
+  console.log("PASS: one-shot whole-welcome expansion and decryption, continuous logo/heading colors, hidden/overlay/selection animation, widths, controls, cleanup, real regular/fullscreen renderers.");
 } finally {
   performance.now = realNow;
   global.setInterval = realInterval;
