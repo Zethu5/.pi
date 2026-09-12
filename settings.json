@@ -19,6 +19,9 @@
     "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
     "https://github.com/ayghri/i-have-adhd"
   ],
+  "skills": [
+    "git/github.com/nextlevelbuilder/ui-ux-pro-max-skill/.claude/skills"
+  ],
   "subagents": {
     "agentOverrides": {
       "scout": {

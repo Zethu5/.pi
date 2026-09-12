@@ -1,6 +1,14 @@
 *
 !.gitignore
 !README.md
+!AGENTS.md
+!check-portability.mjs
+!check-clean-install.mjs
+!themes/
+!themes/thinking-colors.json
+!docs/
+!docs/workflows.md
+!docs/windows-setup.md
 !settings.json
 !.i-have-adhd-always
 !keybindings.json

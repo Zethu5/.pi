@@ -8,12 +8,18 @@ This repository stores global settings and custom extensions. These resources ap
 | Path | Purpose |
 | --- | --- |
 | [`settings.json`](settings.json) | Package sources, default model, terminal settings, and subagent configuration. |
-| [`models.json`](models.json) | Model context-window overrides. These do not grant provider access. |
+| [`models.json`](models.json) | Selected model context-window overrides. These do not grant provider access. |
+| [`AGENTS.md`](AGENTS.md) | Shared global instructions. |
+| [`docs/windows-setup.md`](docs/windows-setup.md) | Fresh Windows installation, backup, login, and service setup. |
+| [`docs/workflows.md`](docs/workflows.md) | Portable guide used by both workflow extensions. |
+| [`themes/thinking-colors.json`](themes/thinking-colors.json) | Original theme, including thinking-level colors. |
 | [`extensions/`](extensions/) | Custom extensions and the RTK optimizer configuration. |
 | `skills/` | Optional local skills. No local skill files are currently tracked. |
 
-The current defaults select OpenAI Codex, `gpt-6-astra`, medium thinking, and regular terminal mode.
-The shell path points to Git Bash on Windows.
+**Fresh Windows installation:** follow [Windows setup](docs/windows-setup.md). The target is `~/.pi/agent`, not `~/.pi`.
+
+The defaults preserve OpenAI Codex, `gpt-6-astra`, medium thinking, fullscreen mode, and `thinking-colors/thinking-colors`.
+The shell path selects Git Bash on Windows. Each subagent retains its selected model.
 
 ## Installed packages
 
@@ -31,6 +37,7 @@ These packages are declared in `settings.json`. Their installed files are not st
 | [`@vndv/pi-codegraph`](https://www.npmjs.com/package/@vndv/pi-codegraph) | Indexed code navigation and change-impact analysis. | `codegraph_*` tools listed below. |
 | [`pi-mcp-adapter`](https://www.npmjs.com/package/pi-mcp-adapter) | Connects MCP servers and exposes their tools. | `mcp`, `mcpScript` |
 | [`ui-ux-pro-max-skill`](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | UI design guidance for layouts, accessibility, typography, colors, charts, and implementation stacks. | Resources exposed by the installed Git package. |
+| [`i-have-adhd`](https://github.com/ayghri/i-have-adhd) | ADHD-focused response instructions. | The Git package and `.i-have-adhd-always` marker. |
 
 Package sources are not version-pinned. Available tools can change after an update.
 Some tools require provider credentials, external programs, or additional configuration.
@@ -66,7 +73,7 @@ CodeGraph requires an index in the target project. Use file search when an index
 `subagent_supervisor` handles child requests. `bg_wait` supports work that lacks native completion notifications.
 Ordinary asynchronous subagent runs notify the parent when they finish.
 
-The global configuration defines these model overrides:
+The global configuration defines these roles:
 
 | Agent | Intended work | Model | Thinking |
 | --- | --- | --- | --- |
@@ -77,7 +84,7 @@ The global configuration defines these model overrides:
 | `oracle` | Difficult technical decisions | `gpt-5.6-sol` | High |
 | `delegate` | Small independent tasks | `gpt-5.6-luna` | Medium |
 
-All overrides use `openai-codex`. Tool permissions differ by agent; see `settings.json` for the exact lists.
+All model overrides use `openai-codex`. Tool permissions differ by agent; see `settings.json` for the exact lists.
 Watchdog monitoring and blocker follow-up are enabled.
 
 ### Ponytail and loop-control skills
@@ -142,8 +149,8 @@ This command grants broader authority than `/z-design`; it is not a design-only 
 | `z_implement_deploy` | Run an exact documented local deployment command after verification and CodeGraph synchronization. |
 
 `/z-implement-next-ticket` provides the session-transition command used by the workflow.
-Both design extensions reference `C:/Users/zvika/.pi/agent/docs/matt-pocock-workflows.md`.
-That local guide is not tracked here. A clone alone is insufficient for these workflows.
+Both design extensions resolve the included [`docs/workflows.md`](docs/workflows.md) relative to their own files.
+No original-user path is required. GitHub authentication, repository checks, and external tools still need local setup.
 
 ### Terminal appearance: `z-pretty-pi`
 
@@ -168,14 +175,16 @@ Read compaction and source-code filtering are disabled.
 
 ## Setup and maintenance
 
-1. Install Pi and the required provider authentication.
-2. Place the repository contents in `~/.pi/agent` without overwriting existing private configuration.
-3. Adjust the Windows shell path and model choices in `settings.json` for your machine.
-4. Start Pi and inspect resource-loading errors.
+1. Follow [Windows setup](docs/windows-setup.md) to check prerequisites and download the source.
+2. Back up existing configuration, then copy the listed public files into `~/.pi/agent`.
+3. Start Pi, let configured packages install, and inspect resource-loading errors.
+4. Run `/login` and verify access to the configured main and subagent models.
 5. Configure research providers, MCP servers, and external programs separately.
 
-The configured `thinking-colors/thinking-colors` theme is not tracked here. Install it separately or select an available theme.
-The repository is a configuration snapshot, not a complete backup of the original environment.
+The exact selected theme, shared instructions, and portable workflow guide are included.
+`thinking-colors/thinking-colors` selects the same theme for light and dark terminals.
+Credentials, external services, and project-local resources are not included. Existing model and context-window choices are preserved.
+Run `node check-portability.mjs` with Node.js 24 to check preserved settings and relocated workflow paths.
 
 ```bash
 pi list                 # List configured packages

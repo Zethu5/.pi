@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 export type CommandKind =
 	| "none"
 	| "publish"
@@ -118,7 +120,7 @@ Feature goal
 ${goal}
 
 Authoritative guide
-Read C:/Users/zvika/.pi/agent/docs/matt-pocock-workflows.md before design work. Follow its current-source corrections and Pi adaptations. Do not install skills or redefine subagents.
+Read ${JSON.stringify(fileURLToPath(new URL("../../docs/workflows.md", import.meta.url)))} before design work. Follow its current-source corrections and Pi adaptations. Do not install skills or redefine subagents.
 
 Authority
 - Design the feature. Do not implement production behavior.

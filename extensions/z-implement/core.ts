@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 export type CommandKind =
 	| "none"
 	| "publish"
@@ -173,7 +175,7 @@ Selected design
 - Base branch: main
 
 Authoritative guide
-Read C:/Users/zvika/.pi/agent/docs/matt-pocock-workflows.md before work. Follow its current-source corrections and Pi adaptations, except its human approval gates. Do not install skills or redefine subagents.
+Read ${JSON.stringify(fileURLToPath(new URL("../../docs/workflows.md", import.meta.url)))} before work. Follow its current-source corrections and Pi adaptations, except its human approval gates. Do not install skills or redefine subagents.
 
 Authority
 - Process only implementation tickets that belong to parent spec #${specNumber}.
