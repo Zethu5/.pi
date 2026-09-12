@@ -148,7 +148,7 @@ try {
   assert.ok(resources.render(80).every(line => !line));
   now += 2000; // Reproduce a blocking startup task after the first mounted render.
   [...timers][0].callback();
-  const progress = Math.min(1, data.intervalMs / 650);
+  const progress = Math.min(1, data.intervalMs / 1600);
   const inset = Math.floor(80 * (1 - progress * progress * (3 - 2 * progress)) / 2);
   const openingHeader = header.render(80);
   const openingResources = resources.render(80);
@@ -160,12 +160,16 @@ try {
   handlers.get("session_start")({ reason: "startup" }, ctx);
   handlers.get("resources_discover")();
   header.render(80);
-  for (let tick = 0; tick < Math.ceil(650 / data.intervalMs); tick++) {
+  const revealInsets = [];
+  for (let tick = 0; tick < Math.ceil(1600 / data.intervalMs); tick++) {
     [...timers][0].callback();
+    const probe = resources.render(121).find(line => line.trim());
+    revealInsets.push(probe ? probe.length - probe.trimStart().length : 60);
     for (const width of [0, 1, 7, 20, 80, 121]) {
       for (const line of [...header.render(width), ...resources.render(width)]) assert.ok(visibleWidth(line) <= width);
     }
   }
+  assert.ok(new Set(revealInsets).size > 25, "Use more reveal steps for smoother expansion.");
   assertFullLogo();
   const expandedResources = resources.render(80).map(stripVTControlCharacters);
   for (let tick = 0; tick <= data.frames.length; tick++) {
@@ -302,7 +306,7 @@ try {
     assert.ok(openingShape.some(line => line.includes("█")));
     assert.ok(openingShape.join("").split("█").length < shape.join("").split("█").length,
       "A startup stall must not skip to the full logo.");
-    for (let i = 1; i < Math.ceil(650 / data.intervalMs); i++) tick();
+    for (let i = 1; i < Math.ceil(1600 / data.intervalMs); i++) tick();
     assert.equal(liveHeader.render(100).length + resourceContainer.render(100).length, openingRows,
       "Keep welcome height stable during expansion.");
     assert.ok(resourceContainer.render(100).some(line => stripVTControlCharacters(line).includes("alpha")));

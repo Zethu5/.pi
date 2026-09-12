@@ -34,7 +34,9 @@ The animation uses pink, purple, and soft blue sampled from the supplied color r
 The whole welcome area expands horizontally from the center once at Pi startup, when the resource list first renders.
 Slow resource discovery does not consume the animation. If no resource component exists, the header stays visible without expansion.
 The reveal includes the logo, version caption, and all resource rows. It keeps row positions and editor placement fixed.
-It advances through 20 timer steps, nominally 660 ms. Startup delays extend playback instead of skipping its frames.
+It advances through 49 timer steps, nominally 1.62 seconds, with smooth acceleration and deceleration.
+The smaller reveal steps keep expansion smooth without changing the color-animation speed.
+Startup delays extend playback instead of skipping its frames.
 It does not repeat on redraw, resize, `/reload`, session changes, or `/logo animate`.
 The animation combines TerminalTextEffects ColorShift with a diagonal Highlight sweep.
 Both effects move from top-left to bottom-right.

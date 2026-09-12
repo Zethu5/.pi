@@ -57,7 +57,7 @@ export default function (pi: ExtensionAPI) {
         timer = setInterval(() => {
           if (expansionStarted && expansion < 1) {
             // Startup can block the event loop. Preserve the opening frames instead of skipping ahead.
-            const progress = Math.min(1, ++expansionTicks * data.intervalMs / 650);
+            const progress = Math.min(1, ++expansionTicks * data.intervalMs / 1600);
             expansion = progress * progress * (3 - 2 * progress);
           }
           if (ready || !startup) captionFrame = Math.min(captionFrame + 6, data.caption.frames.length);
