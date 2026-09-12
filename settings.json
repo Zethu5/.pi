@@ -16,7 +16,8 @@
     "npm:pi-loop-police",
     "npm:@vndv/pi-codegraph",
     "npm:pi-mcp-adapter",
-    "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill"
+    "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
+    "https://github.com/ayghri/i-have-adhd"
   ],
   "subagents": {
     "agentOverrides": {
