@@ -31,11 +31,8 @@ Run `/reload` to apply extension changes.
 
 The welcome header shows the supplied block logo, centered horizontally with its captions.
 The animation uses pink, purple, and soft blue sampled from the supplied color reference.
-At Pi startup, TerminalTextEffects Expand moves the logo outward from its center once.
-Expansion starts on the first animation tick after resource discovery, with no extra delay.
-The header reserves blank space while waiting. Expansion advances one frame per tick so delayed callbacks cannot skip the entrance.
-The expansion does not repeat on reload, session changes, or `/logo animate`.
-It then combines TerminalTextEffects ColorShift with a diagonal Highlight sweep.
+The full logo appears immediately, without an expansion effect.
+The animation combines TerminalTextEffects ColorShift with a diagonal Highlight sweep.
 Both effects move from top-left to bottom-right.
 
 The version caption uses TerminalTextEffects Decrypt once when the header opens or `/logo animate` runs.
@@ -70,7 +67,7 @@ Skills and local extensions use two inner columns when space permits. Narrow ter
 Long paths wrap. All resource list headings and extension group labels share the logo's pink, purple, and blue ColorShift and Highlight frames.
 Additional expandable resource sections, including Themes, receive these heading colors automatically. List values keep their original, static colors.
 The logo timer drives both color animations. `/logo pause` freezes both; reduced motion keeps their colors static.
-`NO_COLOR` removes colors from both. Resource text stays in place while the logo expands at startup.
+`NO_COLOR` removes colors from both. Resource text stays in place during animation.
 Additional sections remain below the main columns. Conflicts and load errors keep their original diagnostic colors.
 
 `resources.ts` decorates the existing resource component through the TUI supplied to `setHeader`.
@@ -82,7 +79,7 @@ Run `/reload` to apply the layout.
 ## Implementation
 
 `generate.py` uses the actual TTE Expand, ColorShift, Highlight, and Decrypt iterators.
-The expansion ends on the first color-loop frame, with fixed header dimensions throughout.
+The generated Expand frames remain in the asset but are not used by the header.
 Highlight provides a grayscale mask. The generator blends this mask over each ColorShift frame.
 Pi reads the compressed frames and draws them through `setHeader`.
 The logo uses no background Python process or direct terminal output.

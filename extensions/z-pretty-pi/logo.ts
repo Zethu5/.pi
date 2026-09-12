@@ -6,7 +6,7 @@ import { VERSION } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, type TuiMainScreen, type TuiAltScreen } from "@earendil-works/pi-tui";
 import { colorResourceLines, decorateResources } from "./resources.ts";
 
-type Animation = { width: number; height: number; intervalMs: number; frames: string[][]; intro: string[][];
+type Animation = { width: number; height: number; intervalMs: number; frames: string[][];
   caption: { text: string; frames: string[] } };
 
 export default function (pi: ExtensionAPI) {
@@ -15,7 +15,7 @@ export default function (pi: ExtensionAPI) {
   let restoreLayout = () => {};
   let animation: Animation | undefined;
 
-  const show = (ctx: ExtensionContext, expand = false) => {
+  const show = (ctx: ExtensionContext, startup = false) => {
     if (ctx.mode !== "tui") return;
     try {
       animation ??= JSON.parse(gunzipSync(readFileSync(new URL("./frames.json.gz", import.meta.url))).toString());
@@ -29,6 +29,7 @@ export default function (pi: ExtensionAPI) {
       let frame = 0;
       let width = 0;
       let viewportDirty = true;
+      let nextViewportCheck = 0;
       let visible = false;
       let restoreResources: (() => void) | undefined;
       restoreLayout = () => { restoreResources?.(); restoreResources = undefined; };
@@ -36,7 +37,6 @@ export default function (pi: ExtensionAPI) {
       const reducedMotion = process.env.PI_REDUCED_MOTION === "1";
       const caption = `pi v${VERSION}`;
       let captionFrame = 0;
-      let introFrame = expand && !noColor && !reducedMotion ? -1 : data.intro.length;
       let ready = false;
       startupReady = () => { ready = true; };
       let timer: ReturnType<typeof setInterval> | undefined;
@@ -47,11 +47,13 @@ export default function (pi: ExtensionAPI) {
           if (width < data.width + 4 || tui.terminal.rows < 20 || tui.hasOverlay?.()) return;
           if (tui.mode === "regular") {
             // Read committed viewport state after rendering, not while measuring the header.
-            // Cache hidden state so idle ticks do not copy the entire transcript.
-            if (viewportDirty) {
+            // Recheck cached state once per second, even without a header render.
+            // This avoids permanent pauses without copying the transcript on every idle tick.
+            if (viewportDirty || performance.now() >= nextViewportCheck) {
               const state = (tui as TuiMainScreen).captureRenderState?.();
               visible = state?.previousViewportTop === 0 && state.maxLinesRendered <= tui.terminal.rows;
               viewportDirty = false;
+              nextViewportCheck = performance.now() + 1000;
             }
           } else if (tui.mode === "fullscreen") {
             const screen = tui as TuiAltScreen;
@@ -59,13 +61,8 @@ export default function (pi: ExtensionAPI) {
           } else visible = false;
           // Freeze both frame state and redraws. Hidden frame changes also cause history replays.
           if (!visible) return;
-          if (ready || !expand) captionFrame = Math.min(captionFrame + 6, data.caption.frames.length);
-          if (introFrame < 0) {
-            if (ready) introFrame = 0;
-          } else if (introFrame < data.intro.length) {
-            // Do not skip the entrance when startup delays a timer callback.
-            introFrame++;
-          } else frame = (frame + 1) % data.frames.length;
+          if (ready || !startup) captionFrame = Math.min(captionFrame + 6, data.caption.frames.length);
+          frame = (frame + 1) % data.frames.length;
           tui.requestRender();
         }, data.intervalMs);
         timer.unref();
@@ -76,9 +73,7 @@ export default function (pi: ExtensionAPI) {
           restoreResources ??= decorateResources(tui, theme, lines => colorResourceLines(lines, data.frames[frame]));
           width = Math.max(0, availableWidth);
           const compact = noColor || width < data.width + 4 || tui.terminal.rows < 20;
-          const logo = compact ? [theme.fg("accent", "π")]
-            : introFrame < 0 ? Array<string>(data.height).fill(" ".repeat(data.width))
-            : data.intro[introFrame] ?? data.frames[frame];
+          const logo = compact ? [theme.fg("accent", "π")] : data.frames[frame];
           const logoPadding = " ".repeat(Math.max(0, Math.floor((width - (compact ? 1 : data.width)) / 2)));
           const center = (line: string) => " ".repeat(Math.max(0, Math.floor((width - visibleWidth(line)) / 2))) + line;
           const captionText = !compact && !reducedMotion && data.caption.text === caption
@@ -87,7 +82,7 @@ export default function (pi: ExtensionAPI) {
             center(colorResourceLines([captionText], data.frames[frame])[0]), ""];
           return lines.map(line => truncateToWidth(noColor ? stripVTControlCharacters(line) : line, width, ""));
         },
-        invalidate() {},
+        invalidate() { viewportDirty = true; },
         dispose() { dispose(); restoreResources?.(); restoreResources = undefined; },
       };
     });

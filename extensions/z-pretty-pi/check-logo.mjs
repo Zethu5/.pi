@@ -127,26 +127,22 @@ try {
   assert.ok(header.render(80).map(stripVTControlCharacters).some(line => line.includes("π")));
   tui.terminal.rows = 40;
   handlers.get("session_start")({ reason: "startup" }, ctx);
-  const waiting = () => header.render(80).slice(1, 1 + data.height).every(line => !visibleShape(line).trim());
-  assert.ok(waiting(), "Do not display a partial logo during startup.");
-  for (let tick = 0; tick < 10; tick++) [...timers][0].callback();
-  assert.ok(waiting(), "Wait for resource discovery.");
+  const assertFullLogo = () => assert.deepEqual(
+    header.render(80).slice(1, 1 + data.height).map(visibleShape),
+    shape.map(line => " ".repeat((80 - data.width) / 2) + line),
+    "Show the full logo immediately, without expansion.");
+  assertFullLogo();
+  for (let tick = 0; tick < 10; tick++) {
+    [...timers][0].callback();
+    assertFullLogo();
+  }
   handlers.get("resources_discover")();
-  [...timers][0].callback();
-  assert.ok(!waiting(), "Start on the first animation tick after resource discovery without an extra delay.");
   const startup = header.render(80);
-  assert.deepEqual(startup.slice(1, 1 + data.height).map(visibleShape),
-    data.intro[0].map(line => " ".repeat((80 - data.width) / 2) + visibleShape(line)));
-  now += 1000;
-  [...timers][0].callback();
-  assert.deepEqual(header.render(80).slice(1, 1 + data.height).map(visibleShape),
-    data.intro[1].map(line => " ".repeat((80 - data.width) / 2) + visibleShape(line)),
-    "A delayed callback must not skip the entrance animation.");
-  for (let tick = 1; tick < data.intro.length; tick++) [...timers][0].callback();
-  assert.deepEqual(header.render(80).slice(1, 1 + data.height).map(visibleShape),
-    shape.map(line => " ".repeat((80 - data.width) / 2) + line));
-  for (let tick = 0; tick < data.frames.length; tick++) [...timers][0].callback();
-  assert.notDeepEqual(header.render(80), startup, "Expansion must not repeat with the color loop.");
+  for (let tick = 0; tick <= data.frames.length; tick++) {
+    [...timers][0].callback();
+    assertFullLogo();
+  }
+  assert.notDeepEqual(header.render(80), startup, "Keep the color and caption animations.");
   for (const reason of ["reload", "new", "resume", "fork"]) {
     handlers.get("session_start")({ reason }, ctx);
     assert.deepEqual(header.render(80).slice(1, 1 + data.height).map(visibleShape),
@@ -164,6 +160,24 @@ try {
   assert.notDeepEqual(header.render(80), beforePrompt, "Frames must advance after a prompt.");
   await command("animate", ctx);
   assert.equal(timers.size, 1);
+  const capture = tui.captureRenderState;
+  let viewportTop = 10, captures = 0;
+  tui.captureRenderState = () => {
+    captures++;
+    return { previousViewportTop: viewportTop, maxLinesRendered: 20 };
+  };
+  const beforeRecovery = header.render(80);
+  const beforeRecoveryRenders = renders;
+  [...timers][0].callback();
+  for (let tick = 0; tick < 10; tick++) [...timers][0].callback();
+  assert.equal(renders, beforeRecoveryRenders, "Hidden checks must not request redraws.");
+  assert.equal(captures, 1, "Do not copy the transcript on every hidden tick.");
+  // The committed viewport can recover without another header render.
+  viewportTop = 0;
+  for (let tick = 0; tick < Math.ceil(1000 / data.intervalMs); tick++) [...timers][0].callback();
+  assert.ok(renders > beforeRecoveryRenders, "Recheck a cached pause without input or a header render.");
+  assert.notDeepEqual(header.render(80), beforeRecovery);
+  tui.captureRenderState = capture;
   await command("pause", ctx);
   assert.equal(timers.size, 0);
   const pausedResources = resources.render(80);
