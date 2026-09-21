@@ -1,9 +1,9 @@
 {
-  "lastChangelogVersion": "0.85.1",
+  "lastChangelogVersion": "0.86.1",
   "theme": "thinking-colors/thinking-colors",
   "tuiMode": "fullscreen",
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-6-astra",
+  "defaultModel": "gpt-5.6-sol",
   "defaultThinkingLevel": "medium",
   "shellPath": "C:/Program Files/Git/bin/bash.exe",
   "packages": [
@@ -13,11 +13,11 @@
     "npm:@ff-labs/pi-fff",
     "npm:pi-rtk-optimizer",
     "npm:pi-subagents",
-    "npm:pi-loop-police",
     "npm:@vndv/pi-codegraph",
     "npm:pi-mcp-adapter",
     "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
-    "https://github.com/ayghri/i-have-adhd"
+    "https://github.com/ayghri/i-have-adhd",
+    "npm:pi-goal-x"
   ],
   "skills": [
     "git/github.com/nextlevelbuilder/ui-ux-pro-max-skill/.claude/skills"

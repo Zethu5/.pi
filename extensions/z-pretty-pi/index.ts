@@ -1,11 +1,22 @@
 import registerLogo from "./logo.js";
 import { basename } from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { CustomEditor, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { CustomEditor, type ExtensionAPI, type SessionEntry } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
 const clean = (text: string) => stripVTControlCharacters(text).replace(/[\x00-\x1f\x7f-\x9f]/g, " ").replace(/\s+/g, " ").trim();
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
+
+export function sessionInputTokens(entries: readonly SessionEntry[]) {
+  let uncached = 0, cached = 0;
+  for (const entry of entries) {
+    const usage = entry.type === "usage" ? entry.usage
+      : entry.type === "message" && (entry.message.role === "assistant" || entry.message.role === "toolResult") ? entry.message.usage
+      : (entry.type === "branch_summary" || entry.type === "compaction") ? entry.usage : undefined;
+    if (usage) { uncached += usage.input + usage.cacheWrite; cached += usage.cacheRead; }
+  }
+  return { uncached, cached };
+}
 
 // Git porcelain v2 uses NUL separators, including a second path for renames.
 export function gitStatus(text: string, plain = false) {
@@ -136,12 +147,15 @@ export default function (pi: ExtensionAPI) {
           const statusSeparator = theme.fg("dim", " | ");
           const contextStats = theme.fg(percent != null && percent > 90 ? "error" : percent != null && percent > 70 ? "warning" : "muted",
             `${percent == null ? "?" : percent.toFixed(1)}% (${contextWindow == null ? "?" : compact.format(contextWindow)})`);
+          const tokens = sessionInputTokens(ctx.sessionManager.getEntries());
+          const input = tokens.uncached + tokens.cached;
+          const tokenStats = theme.fg("muted", `RTK ${input ? (tokens.cached / input * 100).toFixed(1) : "0.0"}%`);
           const provider = clean(ctx.model?.provider ?? "no provider").split("-")[0];
           const vendor = provider === "openai" ? "OpenAI" : provider.charAt(0).toUpperCase() + provider.slice(1);
           const level = ctx.thinkingLevel ?? "off";
           const label = theme.fg("muted", `${clean(ctx.model?.id ?? "no model")} ${vendor} `)
             + theme.getThinkingBorderColor(level)(`● ${level}`);
-          const stats = contextStats + statusSeparator + label;
+          const stats = tokenStats + statusSeparator + contextStats + statusSeparator + label;
           const statuses = [...footerData.getExtensionStatuses()]
             .filter(([key]) => key !== "mcp")
             .sort(([a], [b]) => a.localeCompare(b))

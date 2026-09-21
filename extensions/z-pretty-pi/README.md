@@ -1,7 +1,8 @@
 # z-pretty-pi
 
 This global extension combines the styled editor, status footer, and animated welcome logo.
-The footer shows the project, Git branch, MCP connections, extension status, context usage, then model, provider, and thinking level.
+The footer shows the project, Git branch, MCP connections, extension status, session cache percentage, context usage, then model, provider, and thinking level.
+`RTK` shows the percentage of session input served from cache. Cache writes count as uncached input.
 It does not show cost or subscription details.
 The editor has a top separator but no left or bottom border. Input and footer text start at the separator's left edge.
 A blank row separates the editor from the footer.
@@ -116,7 +117,7 @@ Use the existing Pi packages:
 node ~/.pi/agent/extensions/z-pretty-pi/check.mjs
 ```
 
-The check covers the combined header, open editor, blank buffer row, footer order, mouse handling, autocomplete, MCP updates, context usage, and cost removal.
+The check covers the combined header, open editor, blank buffer row, footer order, session cache percentage, mouse handling, autocomplete, MCP updates, context usage, and cost removal.
 It also runs `check-logo.mjs` for frame shapes, ANSI safety, narrow terminals, animation controls, reduced motion, run modes, and timer cleanup.
 `check-resources.mjs` uses Pi's resource-section builder to check columns, source groups, wrapping, Unicode, diagnostic colors, reloads, and renderer restoration.
 It also checks Themes, new resource headings, shared frame changes, and wrapped headings in collapsed and expanded lists.

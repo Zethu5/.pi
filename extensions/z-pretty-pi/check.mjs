@@ -14,7 +14,7 @@ const agentPath = require.resolve.paths("@earendil-works/pi-coding-agent")
   .map(path => `${path}/@earendil-works/pi-coding-agent/dist/index.js`).find(existsSync);
 assert.ok(agentPath, "Pi must be available in Node's module search path.");
 const jiti = createJiti(import.meta.url, { alias: { "@earendil-works/pi-tui": tuiPath, "@earendil-works/pi-coding-agent": agentPath } });
-const { default: extension, gitStatus } = await jiti.import(new URL("index.ts", import.meta.url).href);
+const { default: extension, gitStatus, sessionInputTokens } = await jiti.import(new URL("index.ts", import.meta.url).href);
 assert.deepEqual(gitStatus(""), { symbols: "", color: "success" });
 const combined = "# branch.ab +2 -3\0# stash 1\0? new\0" +
   "1 MM N... rest\0u UU N... rest\0";
@@ -27,6 +27,16 @@ assert.equal(gitStatus("# branch.ab +0 -3\0", true).symbols, "↓3");
 assert.equal(gitStatus("# branch.ab +2 -0\0", true).symbols, "↑2");
 assert.equal(gitStatus("2 R. N... rest\0? old name\0").symbols, "+1");
 assert.equal(gitStatus("1 .M S..U rest\0").symbols, "!1");
+const usage = (input, cacheRead, cacheWrite) => ({ input, output: 0, cacheRead, cacheWrite, totalTokens: input + cacheRead + cacheWrite,
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } });
+const sessionEntries = [
+  { type: "message", message: { role: "assistant", usage: usage(1000, 2000, 100) } },
+  { type: "message", message: { role: "toolResult", usage: usage(30, 40, 5) } },
+  { type: "usage", usage: usage(200, 300, 50) },
+  { type: "compaction", usage: usage(7, 8, 1) },
+  { type: "branch_summary", usage: usage(9, 10, 2) },
+];
+assert.deepEqual(sessionInputTokens(sessionEntries), { uncached: 1404, cached: 2358 });
 for (const xy of ["DD", "AU", "UD", "UA", "DU", "AA", "UU"])
   assert.equal(gitStatus(`u ${xy} N... rest\0`).symbols, "~1");
 const repo = mkdtempSync(join(tmpdir(), "pretty-git-"));
@@ -89,7 +99,7 @@ const ctx = {
   mode: "tui", cwd: "C:/work/Argus", model: { id: "gpt-test", provider: "openai-codex", contextWindow: 1100000 },
   thinkingLevel: "medium",
   modelRegistry: { isUsingOAuth: () => assert.fail("Do not read subscription data for the footer.") },
-  sessionManager: { getEntries: () => assert.fail("Do not scan session costs for the footer.") },
+  sessionManager: { getEntries: () => sessionEntries },
   getContextUsage: () => ({ percent }),
   ui: {
     theme: { fg: (_, text) => text },
@@ -125,7 +135,7 @@ assert.deepEqual(editorLines.map(stripVTControlCharacters), ["─".repeat(99), "
 assert.ok(plain(200).startsWith("Argus"), "Align the footer with the top separator.");
 assert.ok(!editorLines.join("\n").includes("gpt-test"));
 assert.ok(plain(200).includes("MCP penpot | ponytail: full"));
-assert.ok(plain(200).endsWith("23.4% (1.1M) | gpt-test OpenAI ● medium"));
+assert.ok(plain(200).endsWith("RTK 62.7% | 23.4% (1.1M) | gpt-test OpenAI ● medium"));
 for (const [level, rgb] of Object.entries({ minimal: "34;197;94", low: "132;204;22", medium: "234;179;8", high: "249;115;22", xhigh: "220;38;38", max: "255;0;0" })) {
   ctx.thinkingLevel = level;
   const color = `\x1b[38;2;${rgb}m`;
@@ -161,7 +171,7 @@ for (let width = 0; width <= 180; width++) {
   assert.equal(lines.at(-1), "", "Keep a blank row above the footer.");
   for (const line of lines) assert.ok(visibleWidth(line) <= width);
 }
-assert.match(plain(200), /^Argus  on main\s+MCP penpot \| ponytail: full \| two lines OK \| 23.4% \(1.1M\) \| updated-model OpenAI ● high$/);
+assert.match(plain(200), /^Argus  on main\s+MCP penpot \| ponytail: full \| two lines OK \| RTK 62.7% \| 23.4% \(1.1M\) \| updated-model OpenAI ● high$/);
 for (const count of [0, 3]) {
   completions = Array.from({ length: count }, (_, i) => `choice-${i}`);
   const lines = editor.render(100);
@@ -222,6 +232,6 @@ footer.dispose();
 assert.equal(disposed, 1);
 handlers.get("session_shutdown")();
 assert.equal(listener, undefined);
-console.log("PASS: open editor, footer model/status order, no cost display, mouse/autocomplete, MCP, context, Unicode, widths 0–180, cleanup.");
+console.log("PASS: open editor, footer session cache/model/status order, no cost display, mouse/autocomplete, MCP, context, Unicode, widths 0–180, cleanup.");
 await import("./check-logo.mjs");
 await import("./check-resources.mjs");
