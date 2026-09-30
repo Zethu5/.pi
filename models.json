@@ -1,397 +1,472 @@
 {
-  "providers": {
-    "openai-codex": {
-      "modelOverrides": {
-        "gpt-6-astra": {
-          "contextWindow": 1050000
+    "providers":
+    {
+        "openai-codex":
+        {
+            "modelOverrides":
+            {
+                "gpt-6-astra":
+                {
+                    "contextWindow": 1050000
+                },
+                "gpt-6-sol":
+                {
+                    "contextWindow": 1100000
+                },
+                "gpt-6.1-sol":
+                {
+                    "contextWindow": 1050000
+                },
+                "gpt-5.6-sol":
+                {
+                    "contextWindow": 1050000
+                }
+            }
         },
-        "gpt-5.6-sol": {
-          "contextWindow": 1050000
+        "9router":
+        {
+            "name": "9Router",
+            "baseUrl": "http://localhost:20128/v1",
+            "apiKey": "NINE_ROUTER_API_KEY",
+            "api": "openai-completions",
+            "modelOverrides":
+            {
+                "openrouter/mimo-v2.6-flash":
+                {
+                    "maxTokens": 131072
+                }
+            },
+            "models":
+            [
+                {
+                    "id": "9router-model-combo",
+                    "name": "9Router Model Combo (astra -> deepseek)",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 1048576,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "deepseek-v4.1-flash",
+                    "name": "DeepSeek V4.1 Flash (via 9Router)",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 1048576,
+                    "maxTokens": 384000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-6-astra",
+                    "name": "cx/gpt-6-astra",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 1050000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.6-sol",
+                    "name": "cx/gpt-5.6-sol",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 372000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.6-sol-review",
+                    "name": "cx/gpt-5.6-sol-review",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 372000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.6-terra",
+                    "name": "cx/gpt-5.6-terra",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 272000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.6-terra-review",
+                    "name": "cx/gpt-5.6-terra-review",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 272000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.6-luna",
+                    "name": "cx/gpt-5.6-luna",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 272000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.6-luna-review",
+                    "name": "cx/gpt-5.6-luna-review",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 272000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.5",
+                    "name": "cx/gpt-5.5",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 400000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.5-review",
+                    "name": "cx/gpt-5.5-review",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 400000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.4",
+                    "name": "cx/gpt-5.4",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 400000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.4-review",
+                    "name": "cx/gpt-5.4-review",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 400000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.4-mini",
+                    "name": "cx/gpt-5.4-mini",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 400000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.4-mini-review",
+                    "name": "cx/gpt-5.4-mini-review",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text",
+                        "image"
+                    ],
+                    "contextWindow": 400000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.3-codex-spark",
+                    "name": "cx/gpt-5.3-codex-spark",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text"
+                    ],
+                    "contextWindow": 400000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/gpt-5.3-codex-spark-review",
+                    "name": "cx/gpt-5.3-codex-spark-review",
+                    "reasoning": true,
+                    "input":
+                    [
+                        "text"
+                    ],
+                    "contextWindow": 400000,
+                    "maxTokens": 128000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                },
+                {
+                    "id": "cx/codex-auto-review",
+                    "name": "cx/codex-auto-review",
+                    "reasoning": false,
+                    "input":
+                    [
+                        "text"
+                    ],
+                    "contextWindow": 200000,
+                    "maxTokens": 64000,
+                    "cost":
+                    {
+                        "input": 0,
+                        "output": 0,
+                        "cacheRead": 0,
+                        "cacheWrite": 0
+                    },
+                    "compat":
+                    {
+                        "supportsDeveloperRole": false,
+                        "supportsReasoningEffort": false
+                    }
+                }
+            ]
         }
-      }
-    },
-    "9router": {
-      "name": "9Router",
-      "baseUrl": "http://9router.internal/v1",
-      "apiKey": "$NINE_ROUTER_API_KEY",
-      "api": "openai-completions",
-      "models": [
-        {
-          "id": "9router-model-combo",
-          "name": "9Router Model Combo (astra -> deepseek)",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 1048576,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "deepseek-v4.1-flash",
-          "name": "DeepSeek V4.1 Flash (via 9Router)",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 1048576,
-          "maxTokens": 384000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-6-astra",
-          "name": "cx/gpt-6-astra",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 1050000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.6-sol",
-          "name": "cx/gpt-5.6-sol",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 372000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.6-sol-review",
-          "name": "cx/gpt-5.6-sol-review",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 372000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.6-terra",
-          "name": "cx/gpt-5.6-terra",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 272000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.6-terra-review",
-          "name": "cx/gpt-5.6-terra-review",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 272000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.6-luna",
-          "name": "cx/gpt-5.6-luna",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 272000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.6-luna-review",
-          "name": "cx/gpt-5.6-luna-review",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 272000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.5",
-          "name": "cx/gpt-5.5",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 400000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.5-review",
-          "name": "cx/gpt-5.5-review",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 400000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.4",
-          "name": "cx/gpt-5.4",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 400000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.4-review",
-          "name": "cx/gpt-5.4-review",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 400000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.4-mini",
-          "name": "cx/gpt-5.4-mini",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 400000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.4-mini-review",
-          "name": "cx/gpt-5.4-mini-review",
-          "reasoning": true,
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 400000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.3-codex-spark",
-          "name": "cx/gpt-5.3-codex-spark",
-          "reasoning": true,
-          "input": [
-            "text"
-          ],
-          "contextWindow": 400000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/gpt-5.3-codex-spark-review",
-          "name": "cx/gpt-5.3-codex-spark-review",
-          "reasoning": true,
-          "input": [
-            "text"
-          ],
-          "contextWindow": 400000,
-          "maxTokens": 128000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        },
-        {
-          "id": "cx/codex-auto-review",
-          "name": "cx/codex-auto-review",
-          "reasoning": false,
-          "input": [
-            "text"
-          ],
-          "contextWindow": 200000,
-          "maxTokens": 64000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false
-          }
-        }
-      ]
     }
-  }
 }

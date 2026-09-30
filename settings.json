@@ -1,9 +1,10 @@
 {
-  "lastChangelogVersion": "0.86.1",
+  "lastChangelogVersion": "0.99.1",
   "theme": "thinking-colors/thinking-colors",
   "tuiMode": "fullscreen",
+  "warnOnHomeDirScan": false,
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.6-sol",
+  "defaultModel": "gpt-6.1-sol",
   "defaultThinkingLevel": "medium",
   "shellPath": "C:/Program Files/Git/bin/bash.exe",
   "packages": [
@@ -15,7 +16,6 @@
     "npm:pi-subagents",
     "npm:@vndv/pi-codegraph",
     "npm:pi-mcp-adapter",
-    "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
     "https://github.com/ayghri/i-have-adhd",
     "npm:pi-goal-x"
   ],
@@ -25,7 +25,7 @@
   "subagents": {
     "agentOverrides": {
       "scout": {
-        "model": "openai-codex/gpt-5.6-luna",
+        "model": "openai-codex/gpt-6-luna",
         "thinking": "low",
         "tools": [
           "read",
@@ -47,7 +47,7 @@
         ]
       },
       "researcher": {
-        "model": "openai-codex/gpt-5.6-terra",
+        "model": "openai-codex/gpt-6.1-sol",
         "thinking": "medium",
         "tools": [
           "read",
@@ -58,8 +58,8 @@
         ]
       },
       "worker": {
-        "model": "openai-codex/gpt-5.6-terra",
-        "thinking": "high",
+        "model": "openai-codex/gpt-6-luna",
+        "thinking": "medium",
         "tools": [
           "read",
           "grep",
@@ -82,8 +82,8 @@
         ]
       },
       "reviewer": {
-        "model": "openai-codex/gpt-5.6-terra",
-        "thinking": "high",
+        "model": "openai-codex/gpt-6.1-sol",
+        "thinking": "medium",
         "skills": [
           "ponytail-review"
         ],
@@ -105,7 +105,7 @@
         ]
       },
       "oracle": {
-        "model": "openai-codex/gpt-5.6-sol",
+        "model": "openai-codex/gpt-6.1-sol",
         "thinking": "high",
         "tools": [
           "read",
@@ -126,7 +126,7 @@
         ]
       },
       "delegate": {
-        "model": "openai-codex/gpt-5.6-luna",
+        "model": "openai-codex/gpt-6-luna",
         "thinking": "medium",
         "tools": [
           "read",
@@ -152,20 +152,11 @@
     },
     "watchdog": {
       "main": {
-        "enabled": true
+        "enabled": true,
+        "model": "openai-codex/gpt-6.1-sol"
       },
       "children": {
-        "enabled": true,
-        "autoFollow": {
-          "blockers": true
-        }
-      },
-      "asyncCompletion": {
-        "enabled": true,
-        "autoFollowBlockers": true
-      },
-      "autoFollow": {
-        "blockers": true
+        "enabled": true
       },
       "enabled": true
     }
